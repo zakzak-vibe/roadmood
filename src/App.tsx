@@ -22,17 +22,7 @@ import {
   fetchOneMapRoute,
   TrafficOverviewResponse,
 } from './services/ltaApi';
-
-// Coordinate lookup for Singapore landmarks for OneMap routing
-const DESTINATION_COORDS: Record<string, { lat: number; lng: number }> = {
-  'changi': { lat: 1.3644, lng: 103.9915 },
-  'marina': { lat: 1.2789, lng: 103.8536 },
-  'jurong': { lat: 1.3331, lng: 103.7436 },
-  'orchard': { lat: 1.3048, lng: 103.8318 },
-  'woodlands': { lat: 1.4470, lng: 103.7717 },
-  'sentosa': { lat: 1.2540, lng: 103.8238 },
-  'tampines': { lat: 1.3533, lng: 103.9452 },
-};
+import { computeMoodRoute } from './services/routingService';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'moods' | 'awards' | 'my-trips'>('moods');
@@ -128,41 +118,85 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Recalculate route using OneMap when destination changes
+  // Recalculate route whenever origin, destination, or live telemetry changes
   useEffect(() => {
-    if (!destination) return;
+    if (!destination || !destination.trim()) return;
 
-    const lower = destination.toLowerCase();
-    let destCoord = DESTINATION_COORDS['changi'];
-    for (const [key, coord] of Object.entries(DESTINATION_COORDS)) {
-      if (lower.includes(key)) {
-        destCoord = coord;
-        break;
-      }
-    }
+    const computed = computeMoodRoute(origin, destination, liveOverview?.expressways);
 
-    const startCoord = '1.3343,103.8563'; // Toa Payoh
-    const endCoord = `${destCoord.lat},${destCoord.lng}`;
+    // Call OneMap route API with the resolved coordinates
+    const startCoord = `${computed.fromLoc.lat},${computed.fromLoc.lng}`;
+    const endCoord = `${computed.toLoc.lat},${computed.toLoc.lng}`;
 
     fetchOneMapRoute(startCoord, endCoord)
       .then((oneMapRes) => {
-        if (oneMapRes && oneMapRes.route_summary) {
-          const estMins = Math.round(oneMapRes.route_summary.total_time / 60) || 35;
-          const distKm = parseFloat((oneMapRes.route_summary.total_distance / 1000).toFixed(1)) || 24.6;
+        let estMins = computed.estMinutes;
+        let distKm = computed.totalDistanceKm;
 
-          setRouteData((prev) => ({
-            ...prev,
-            toText: destination,
-            estMinutes: estMins,
-            distanceKm: distKm,
-            delayMinutes: Math.max(0, estMins - Math.round(distKm * 0.9)),
-          }));
+        if (oneMapRes && oneMapRes.route_summary && oneMapRes.route_summary.total_time > 0) {
+          estMins = Math.round(oneMapRes.route_summary.total_time / 60);
+          distKm = parseFloat((oneMapRes.route_summary.total_distance / 1000).toFixed(1));
         }
+
+        setRouteData({
+          fromText: computed.fromLoc.name,
+          toText: computed.toLoc.name,
+          estMinutes: estMins,
+          delayMinutes: Math.max(0, estMins - Math.round(distKm * 0.85)),
+          distanceKm: distKm,
+          recommendationTitle: computed.recommendationTitle,
+          smartTip: computed.smartTip,
+          weatherWarning: {
+            title: liveOverview?.weather?.forecast
+              ? `NEA: ${liveOverview.weather.forecast.toUpperCase()}`
+              : 'NEA WEATHER',
+            updatedAgo: 'Live Forecast',
+            description: liveOverview?.weather?.forecast
+              ? `${liveOverview.weather.forecast} over ${computed.toLoc.name}. Drive with safe distance.`
+              : 'Drive with extra caution and allow safe braking distance.',
+          },
+          expressways: computed.expresswaysOnRoute.map((e) => ({
+            expresswayId: e.code.toLowerCase(),
+            code: e.code,
+            sectionName: e.sectionName,
+            distanceKm: e.distanceKm,
+            speedKmH: e.speedKmH,
+            moodLabel: e.moodLabel,
+            mood: e.mood,
+            characterQuote: e.quote,
+            incidents: e.incidents,
+          })),
+        });
       })
-      .catch((e) => {
-        console.warn('OneMap route fetch error:', e);
+      .catch((err) => {
+        console.warn('OneMap fetch error, using computed route:', err);
+        setRouteData({
+          fromText: computed.fromLoc.name,
+          toText: computed.toLoc.name,
+          estMinutes: computed.estMinutes,
+          delayMinutes: computed.delayMinutes,
+          distanceKm: computed.totalDistanceKm,
+          recommendationTitle: computed.recommendationTitle,
+          smartTip: computed.smartTip,
+          weatherWarning: {
+            title: 'NEA WEATHER',
+            updatedAgo: 'Live Forecast',
+            description: `Drive with safe distance on route to ${computed.toLoc.name}.`,
+          },
+          expressways: computed.expresswaysOnRoute.map((e) => ({
+            expresswayId: e.code.toLowerCase(),
+            code: e.code,
+            sectionName: e.sectionName,
+            distanceKm: e.distanceKm,
+            speedKmH: e.speedKmH,
+            moodLabel: e.moodLabel,
+            mood: e.mood,
+            characterQuote: e.quote,
+            incidents: e.incidents,
+          })),
+        });
       });
-  }, [destination]);
+  }, [origin, destination, liveOverview]);
 
   const showToast = (message: string) => {
     if (toastTimeout) {
@@ -182,10 +216,10 @@ export default function App() {
       return;
     }
     const currentOrigin = origin.replace('📍 ', '');
-    const currentDest = destination;
+    const currentDest = destination.replace('📍 ', '');
     setOrigin(`📍 ${currentDest}`);
     setDestination(currentOrigin);
-    showToast('Route swapped! Recalculating expressway spirits...');
+    showToast(`Route swapped: ${currentDest} ⇄ ${currentOrigin}`);
   };
 
   const handleRequestLocation = () => {
@@ -203,6 +237,11 @@ export default function App() {
   const handleAlertWhenGreen = () => {
     showToast('Ding! We will buzz your phone the moment PIE turns green (>70 km/h).');
   };
+
+  const computedRoute = computeMoodRoute(origin, destination, liveOverview?.expressways);
+  const isClassic = Boolean(
+    origin.toLowerCase().includes('toa payoh') && destination.toLowerCase().includes('changi')
+  );
 
   return (
     <div className="min-h-screen bg-[#fff8f5] text-[#211a15] flex flex-col font-sans selection:bg-[#6ffbbe] selection:text-[#002113]">
@@ -252,6 +291,10 @@ export default function App() {
               onViewAwards={() => setActiveTab('awards')}
               onShowToast={showToast}
               liveOverview={liveOverview}
+              onTriggerRoutePlan={(newOrigin, newDest) => {
+                setOrigin(newOrigin);
+                setDestination(newDest);
+              }}
             />
 
             {/* Right Map Canvas */}
@@ -267,6 +310,18 @@ export default function App() {
               liveExpressways={liveOverview?.expressways}
               onRefreshLive={loadLiveTraffic}
               isLiveActive={isLiveActive}
+              fromPoint={{
+                name: computedRoute.fromLoc.name,
+                svgX: computedRoute.fromLoc.svgX,
+                svgY: computedRoute.fromLoc.svgY,
+              }}
+              toPoint={{
+                name: computedRoute.toLoc.name,
+                svgX: computedRoute.toLoc.svgX,
+                svgY: computedRoute.toLoc.svgY,
+              }}
+              svgRoutePath={computedRoute.svgRoutePath}
+              isClassicRoute={isClassic}
             />
           </div>
         )}

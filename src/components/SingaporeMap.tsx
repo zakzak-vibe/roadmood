@@ -13,6 +13,10 @@ interface SingaporeMapProps {
   liveExpressways?: Record<string, any>;
   onRefreshLive?: () => Promise<void>;
   isLiveActive?: boolean;
+  fromPoint?: { name: string; svgX: number; svgY: number };
+  toPoint?: { name: string; svgX: number; svgY: number };
+  svgRoutePath?: string;
+  isClassicRoute?: boolean;
 }
 
 export const SingaporeMap: React.FC<SingaporeMapProps> = ({
@@ -27,6 +31,10 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
   liveExpressways,
   onRefreshLive,
   isLiveActive,
+  fromPoint = { name: 'Toa Payoh Central', svgX: 415, svgY: 310 },
+  toPoint = { name: 'Changi Airport T3', svgX: 890, svgY: 285 },
+  svgRoutePath,
+  isClassicRoute = true,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -372,63 +380,96 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
               />
             )}
 
-            {/* ACTIVE NAVIGATION ROUTE HIGHLIGHT (When Route is Active: Toa Payoh -> PIE -> KPE -> ECP -> Changi T3) */}
+            {/* ACTIVE NAVIGATION ROUTE HIGHLIGHT */}
             {isRouteActive && (
               <g id="active-route-group">
-                {/* Segment B: PIE Heavy Traffic Section (Red Jammed) */}
-                <path
-                  d="M 415 310 C 470 300 530 285 620 295 C 670 300 700 315 730 318"
-                  stroke="#BA1A1A"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  filter="url(#jam-glow)"
-                />
-                <path
-                  d="M 415 310 C 470 300 530 285 620 295 C 670 300 700 315 730 318"
-                  stroke="#FFB3AD"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                {isClassicRoute ? (
+                  <>
+                    {/* Segment B: PIE Heavy Traffic Section (Red Jammed) */}
+                    <path
+                      d="M 415 310 C 470 300 530 285 620 295 C 670 300 700 315 730 318"
+                      stroke="#BA1A1A"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      filter="url(#jam-glow)"
+                    />
+                    <path
+                      d="M 415 310 C 470 300 530 285 620 295 C 670 300 700 315 730 318"
+                      stroke="#FFB3AD"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
 
-                {/* Segment C: KPE Tunnel Connector (Amber Flow) */}
-                <path
-                  d="M 620 295 C 625 330 635 365 650 380"
-                  stroke="#FEA619"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M 620 295 C 625 330 635 365 650 380"
-                  stroke="#FFDDB8"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                    {/* Segment C: KPE Tunnel Connector (Amber Flow) */}
+                    <path
+                      d="M 620 295 C 625 330 635 365 650 380"
+                      stroke="#FEA619"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M 620 295 C 625 330 635 365 650 380"
+                      stroke="#FFDDB8"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
 
-                {/* Segment D: ECP Coastal Express (Green Breezy Flow to Airport) */}
-                <path
-                  d="M 570 395 C 640 385 730 375 800 350 C 850 330 875 305 890 285"
-                  stroke="#10B981"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  filter="url(#route-glow)"
-                />
-                <path
-                  d="M 570 395 C 640 385 730 375 800 350 C 850 330 875 305 890 285"
-                  stroke="#6FFBBE"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                    {/* Segment D: ECP Coastal Express (Green Breezy Flow to Airport) */}
+                    <path
+                      d="M 570 395 C 640 385 730 375 800 350 C 850 330 875 305 890 285"
+                      stroke="#10B981"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      filter="url(#route-glow)"
+                    />
+                    <path
+                      d="M 570 395 C 640 385 730 375 800 350 C 850 330 875 305 890 285"
+                      stroke="#6FFBBE"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* Dynamic Computed Route Curve connecting fromPoint to toPoint */}
+                    <path
+                      d={
+                        svgRoutePath ||
+                        `M ${fromPoint.svgX} ${fromPoint.svgY} Q ${(fromPoint.svgX + toPoint.svgX) / 2} ${
+                          (fromPoint.svgY + toPoint.svgY) / 2 - 35
+                        } ${toPoint.svgX} ${toPoint.svgY}`
+                      }
+                      stroke="#006C49"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      filter="url(#route-glow)"
+                    />
+                    <path
+                      d={
+                        svgRoutePath ||
+                        `M ${fromPoint.svgX} ${fromPoint.svgY} Q ${(fromPoint.svgX + toPoint.svgX) / 2} ${
+                          (fromPoint.svgY + toPoint.svgY) / 2 - 35
+                        } ${toPoint.svgX} ${toPoint.svgY}`
+                      }
+                      stroke="#6FFBBE"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </>
+                )}
 
-                {/* Origin Pin (Toa Payoh Central) */}
-                <circle cx="415" cy="310" r="7" fill="#006C49" />
-                <circle cx="415" cy="310" r="3" fill="#ffffff" />
-                <circle cx="415" cy="310" r="14" fill="#006C49" opacity="0.25">
+                {/* Origin Pin */}
+                <circle cx={fromPoint.svgX} cy={fromPoint.svgY} r="7" fill="#006C49" />
+                <circle cx={fromPoint.svgX} cy={fromPoint.svgY} r="3" fill="#ffffff" />
+                <circle cx={fromPoint.svgX} cy={fromPoint.svgY} r="14" fill="#006C49" opacity="0.25">
                   <animate
                     attributeName="r"
                     values="7;18;7"
@@ -443,10 +484,10 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
                   />
                 </circle>
 
-                {/* Destination Pin (Changi T3) */}
-                <circle cx="890" cy="285" r="7" fill="#BA1A1A" />
-                <circle cx="890" cy="285" r="3" fill="#ffffff" />
-                <circle cx="890" cy="285" r="16" fill="#BA1A1A" opacity="0.25">
+                {/* Destination Pin */}
+                <circle cx={toPoint.svgX} cy={toPoint.svgY} r="7" fill="#BA1A1A" />
+                <circle cx={toPoint.svgX} cy={toPoint.svgY} r="3" fill="#ffffff" />
+                <circle cx={toPoint.svgX} cy={toPoint.svgY} r="16" fill="#BA1A1A" opacity="0.25">
                   <animate
                     attributeName="r"
                     values="7;18;7"

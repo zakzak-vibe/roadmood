@@ -12,6 +12,7 @@ import {
   EXPRESSWAYS,
 } from '../data/trafficData';
 import { TrafficOverviewResponse } from '../services/ltaApi';
+import { SINGAPORE_LOCATIONS, LocationPoint } from '../services/routingService';
 
 interface RoutePanelProps {
   origin: string;
@@ -30,6 +31,7 @@ interface RoutePanelProps {
   onViewAwards: () => void;
   onShowToast: (msg: string) => void;
   liveOverview?: TrafficOverviewResponse | null;
+  onTriggerRoutePlan?: (from: string, to: string) => void;
 }
 
 export const RoutePanel: React.FC<RoutePanelProps> = ({
@@ -49,7 +51,11 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
   onViewAwards,
   onShowToast,
   liveOverview,
+  onTriggerRoutePlan,
 }) => {
+  const [showOriginDropdown, setShowOriginDropdown] = React.useState(false);
+  const [showDestDropdown, setShowDestDropdown] = React.useState(false);
+
   const grumpiest = liveOverview?.grumpiestExpy || {
     code: 'PIE',
     name: 'Pan Island Expressway',
@@ -58,6 +64,31 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
     quote: EXPRESSWAYS.pie.characterQuote,
     peakDelayNote: 'Peak delay: +24 mins near Woodsville',
   };
+
+  const handlePlanRoute = () => {
+    if (!destination.trim()) {
+      onShowToast('Please enter a destination to check expressway moods!');
+      return;
+    }
+    if (onTriggerRoutePlan) {
+      onTriggerRoutePlan(origin, destination);
+    }
+    onShowToast(`Route calculated: ${origin.replace('📍 ', '')} → ${destination}`);
+  };
+
+  const originClean = origin.replace('📍 ', '').toLowerCase();
+  const originSuggestions = SINGAPORE_LOCATIONS.filter(
+    (loc) =>
+      loc.name.toLowerCase().includes(originClean) ||
+      loc.keywords.some((k) => k.includes(originClean))
+  ).slice(0, 5);
+
+  const destClean = destination.toLowerCase();
+  const destSuggestions = SINGAPORE_LOCATIONS.filter(
+    (loc) =>
+      loc.name.toLowerCase().includes(destClean) ||
+      loc.keywords.some((k) => k.includes(destClean))
+  ).slice(0, 5);
 
   return (
     <aside className="w-full lg:w-[460px] xl:w-[490px] shrink-0 bg-[#fff8f5] flex flex-col z-20 shadow-[8px_0_24px_-10px_rgba(60,40,20,0.06)] border-r border-[#eee0d6] overflow-y-auto max-h-none lg:max-h-[calc(100vh-4rem)]">
@@ -137,23 +168,58 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
 
           <div className="relative flex flex-col gap-2">
             {/* Origin Field */}
-            <div className="flex items-center gap-2.5 bg-[#fff1e7] px-3.5 py-2 rounded-full border border-[#eee0d6] hover:bg-[#f9ebe2] transition-colors">
-              <div className="relative flex items-center justify-center shrink-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#006c49] animate-pulse" />
-                <span className="w-5 h-5 rounded-full bg-[#006c49]/20 absolute" />
+            <div className="relative">
+              <div className="flex items-center gap-2.5 bg-[#fff1e7] px-3.5 py-2 rounded-full border border-[#eee0d6] hover:bg-[#f9ebe2] focus-within:border-[#006c49] focus-within:bg-white transition-all">
+                <div className="relative flex items-center justify-center shrink-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#006c49] animate-pulse" />
+                  <span className="w-5 h-5 rounded-full bg-[#006c49]/20 absolute" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="block text-[10px] uppercase text-[#3c4a42] tracking-wider font-extrabold leading-none mb-0.5">
+                    FROM
+                  </span>
+                  <input
+                    type="text"
+                    value={origin}
+                    onFocus={() => setShowOriginDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowOriginDropdown(false), 200)}
+                    onChange={(e) => {
+                      setOrigin(e.target.value);
+                      setShowOriginDropdown(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handlePlanRoute();
+                    }}
+                    className="w-full bg-transparent text-[14px] text-[#211a15] font-bold focus:outline-none truncate"
+                    placeholder="Where are you starting from?"
+                  />
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <span className="block text-[10px] uppercase text-[#3c4a42] tracking-wider font-extrabold leading-none mb-0.5">
-                  FROM
-                </span>
-                <input
-                  type="text"
-                  value={origin}
-                  onChange={(e) => setOrigin(e.target.value)}
-                  className="w-full bg-transparent text-[14px] text-[#211a15] font-bold focus:outline-none truncate"
-                  placeholder="Where are you starting from?"
-                />
-              </div>
+
+              {/* Origin Autocomplete Popover */}
+              {showOriginDropdown && originSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-[#eee0d6] z-50 overflow-hidden divide-y divide-[#eee0d6]/60">
+                  {originSuggestions.map((loc) => (
+                    <button
+                      key={loc.id}
+                      type="button"
+                      onMouseDown={() => {
+                        setOrigin(`📍 ${loc.name}`);
+                        setShowOriginDropdown(false);
+                      }}
+                      className="w-full px-3.5 py-2 text-left hover:bg-[#fff1e7] flex items-center justify-between text-[13px] text-[#211a15] font-semibold cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span>📍</span>
+                        <span className="truncate">{loc.name}</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold text-[#855300] bg-[#fff1e7] px-2 py-0.5 rounded-full">
+                        {loc.category}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Tactile Route Switcher Button */}
@@ -161,39 +227,87 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
               type="button"
               onClick={onSwapRoute}
               aria-label="Swap Locations"
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white text-[#211a15] shadow-md border border-[#eee0d6] hover:bg-[#f3e6dc] hover:rotate-180 transition-all flex items-center justify-center cursor-pointer active:scale-90"
+              className="absolute right-4 top-[38px] z-10 w-8 h-8 rounded-full bg-white text-[#211a15] shadow-md border border-[#eee0d6] hover:bg-[#f3e6dc] hover:rotate-180 transition-all flex items-center justify-center cursor-pointer active:scale-90"
             >
               <span className="material-symbols-outlined text-[17px]">swap_vert</span>
             </button>
 
             {/* Destination Field */}
-            <div className="flex items-center gap-2.5 bg-[#fff1e7] px-3.5 py-2 rounded-full border border-[#eee0d6] hover:bg-[#f9ebe2] transition-colors">
-              <span className="material-symbols-outlined text-[#b91a24] text-[20px] shrink-0">
-                sports_score
-              </span>
-              <div className="flex-1 min-w-0">
-                <span className="block text-[10px] uppercase text-[#3c4a42] tracking-wider font-extrabold leading-none mb-0.5">
-                  TO
+            <div className="relative">
+              <div className="flex items-center gap-2.5 bg-[#fff1e7] px-3.5 py-2 rounded-full border border-[#eee0d6] hover:bg-[#f9ebe2] focus-within:border-[#b91a24] focus-within:bg-white transition-all">
+                <span className="material-symbols-outlined text-[#b91a24] text-[20px] shrink-0">
+                  sports_score
                 </span>
-                <input
-                  type="text"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  placeholder="Where are you headed? (e.g. Marina Bay, Changi)"
-                  className="w-full bg-transparent text-[14px] text-[#211a15] font-bold focus:outline-none truncate placeholder:text-[#3c4a42]/60"
-                />
+                <div className="flex-1 min-w-0">
+                  <span className="block text-[10px] uppercase text-[#3c4a42] tracking-wider font-extrabold leading-none mb-0.5">
+                    TO
+                  </span>
+                  <input
+                    type="text"
+                    value={destination}
+                    onFocus={() => setShowDestDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowDestDropdown(false), 200)}
+                    onChange={(e) => {
+                      setDestination(e.target.value);
+                      setShowDestDropdown(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handlePlanRoute();
+                    }}
+                    placeholder="Where are you headed? (e.g. Marina Bay, Jurong, Changi)"
+                    className="w-full bg-transparent text-[14px] text-[#211a15] font-bold focus:outline-none truncate placeholder:text-[#3c4a42]/60"
+                  />
+                </div>
+                {destination && (
+                  <button
+                    type="button"
+                    onClick={() => setDestination('')}
+                    className="w-5 h-5 rounded-full bg-[#eee0d6] text-[#3c4a42] hover:bg-[#bbcabf] flex items-center justify-center text-[12px] cursor-pointer"
+                    title="Clear destination"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
-              {destination && (
-                <button
-                  type="button"
-                  onClick={() => setDestination('')}
-                  className="w-5 h-5 rounded-full bg-[#eee0d6] text-[#3c4a42] hover:bg-[#bbcabf] flex items-center justify-center text-[12px] cursor-pointer"
-                  title="Clear destination"
-                >
-                  ✕
-                </button>
+
+              {/* Destination Autocomplete Popover */}
+              {showDestDropdown && destSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-[#eee0d6] z-50 overflow-hidden divide-y divide-[#eee0d6]/60">
+                  {destSuggestions.map((loc) => (
+                    <button
+                      key={loc.id}
+                      type="button"
+                      onMouseDown={() => {
+                        setDestination(loc.name);
+                        setShowDestDropdown(false);
+                        if (onTriggerRoutePlan) {
+                          onTriggerRoutePlan(origin, loc.name);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2 text-left hover:bg-[#fff1e7] flex items-center justify-between text-[13px] text-[#211a15] font-semibold cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span>🎯</span>
+                        <span className="truncate">{loc.name}</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold text-[#006c49] bg-[#fff1e7] px-2 py-0.5 rounded-full">
+                        {loc.category}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
+
+            {/* Plan Route Trigger Button */}
+            <button
+              type="button"
+              onClick={handlePlanRoute}
+              className="w-full py-2.5 px-4 rounded-full bg-[#006c49] hover:bg-[#10b981] text-white text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]">directions</span>
+              <span>Find Mood Route</span>
+            </button>
           </div>
 
           {/* Quick Suggestion Chips */}
