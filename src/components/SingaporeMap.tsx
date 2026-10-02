@@ -226,127 +226,118 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
-  // Initialize OneMap Leaflet Grey Map (TileJSON) as specified by user
+  // Initialize OneMap Leaflet Grey Map (TileJSON) as specified
   useEffect(() => {
     let isCancelled = false;
 
     const initMap = () => {
-      const L = window.L;
-      if (!L) {
-        setTimeout(initMap, 100);
-        return;
-      }
-
-      const mapContainer = document.getElementById('mapdiv');
-      if (!mapContainer) return;
-
-      // Clean up previous instance on mapdiv if any
-      if (mapInstanceRef.current) {
-        try {
-          mapInstanceRef.current.remove();
-        } catch (e) {
-          console.warn('Map cleanup error:', e);
+      try {
+        const L = window.L;
+        if (!L) {
+          setTimeout(initMap, 100);
+          return;
         }
-        mapInstanceRef.current = null;
-      }
 
-      if ((mapContainer as any)._leaflet_id) {
-        delete (mapContainer as any)._leaflet_id;
-        mapContainer.innerHTML = '';
-      }
+        const mapContainer = document.getElementById('mapdiv');
+        if (!mapContainer) return;
 
-      const sw = L.latLng(1.144, 103.535);
-      const ne = L.latLng(1.494, 104.502);
-      const bounds = L.latLngBounds(sw, ne);
-
-      const attributionHtml =
-        '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>';
-
-      const setupMap = (data: any) => {
-        if (isCancelled) return;
-
-        let map: any;
-
-        try {
-          if (L.TileJSON && typeof L.TileJSON.createMap === 'function') {
-            map = L.TileJSON.createMap('mapdiv', data);
-          } else {
-            map = L.map('mapdiv', {
-              maxBounds: bounds,
-              minZoom: 11,
-              maxZoom: 19,
-              attributionControl: true,
-            });
-            const tileUrl =
-              (data && data.tiles && data.tiles[0]) ||
-              'https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png';
-            L.tileLayer(tileUrl, {
-              minZoom: 11,
-              maxZoom: 19,
-              bounds: [
-                [1.16, 103.502],
-                [1.56073, 104.11475],
-              ],
-            }).addTo(map);
+        // Clean up previous instance on mapdiv if any
+        if (mapInstanceRef.current) {
+          try {
+            mapInstanceRef.current.remove();
+          } catch (e) {
+            console.warn('Map cleanup error:', e);
           }
-        } catch (err) {
-          console.warn('L.TileJSON.createMap fallback to L.map:', err);
-          map = L.map('mapdiv', {
-            maxBounds: bounds,
-            minZoom: 11,
-            maxZoom: 19,
-            attributionControl: true,
-          });
-          L.tileLayer('https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png', {
-            minZoom: 11,
-            maxZoom: 19,
-            bounds: [
-              [1.16, 103.502],
-              [1.56073, 104.11475],
-            ],
-          }).addTo(map);
+          mapInstanceRef.current = null;
         }
 
-        map.setMaxBounds(bounds);
-        map.setView(L.latLng(1.2868108, 103.8545349), 16);
-
-        /** DO NOT REMOVE the OneMap attribution below **/
-        if (map.attributionControl) {
-          map.attributionControl.setPrefix(attributionHtml);
+        if ((mapContainer as any)._leaflet_id) {
+          delete (mapContainer as any)._leaflet_id;
+          mapContainer.innerHTML = '';
         }
 
-        mapInstanceRef.current = map;
+        const sw = L.latLng(1.144, 103.535);
+        const ne = L.latLng(1.494, 104.502);
+        const bounds = L.latLngBounds(sw, ne);
 
-        // Invalidate size to guarantee tile rendering inside flex containers
-        setTimeout(() => {
-          if (map) map.invalidateSize();
-        }, 150);
-        setTimeout(() => {
-          if (map) map.invalidateSize();
-        }, 500);
+        const attributionHtml =
+          '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>';
 
-        setMapReady(true);
-      };
+        const setupMapWithData = (data: any) => {
+          if (isCancelled) return;
 
-      // Use $.get as specified in the OneMap snippet, with fallback to fetch
-      if (window.$ && typeof window.$.get === 'function') {
-        window.$.get(
-          'https://www.onemap.gov.sg/maps/json/raster/tilejson/2.2.0/Grey.json',
-          function (data: any) {
-            setupMap(data);
+          try {
+            let map: any;
+
+            if (L.TileJSON && typeof L.TileJSON.createMap === 'function') {
+              map = L.TileJSON.createMap('mapdiv', data);
+            } else {
+              map = L.map('mapdiv', {
+                maxBounds: bounds,
+                minZoom: 11,
+                maxZoom: 19,
+                attributionControl: true,
+              });
+              const tileUrl =
+                (data && data.tiles && data.tiles[0]) ||
+                'https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png';
+              L.tileLayer(tileUrl, {
+                minZoom: 11,
+                maxZoom: 19,
+                bounds: [
+                  [1.16, 103.502],
+                  [1.56073, 104.11475],
+                ],
+              }).addTo(map);
+            }
+
+            map.setMaxBounds(bounds);
+            map.setView(L.latLng(1.2868108, 103.8545349), 16);
+
+            /** DO NOT REMOVE the OneMap attribution below **/
+            if (map.attributionControl) {
+              map.attributionControl.setPrefix(attributionHtml);
+            }
+
+            mapInstanceRef.current = map;
+
+            setTimeout(() => {
+              if (map) map.invalidateSize();
+            }, 100);
+            setTimeout(() => {
+              if (map) map.invalidateSize();
+            }, 400);
+
+            setMapReady(true);
+          } catch (setupErr: any) {
+            console.error('Failed to setup map with TileJSON:', setupErr);
+            setInitError(setupErr?.message || 'Failed to initialize map');
           }
-        );
-      } else {
-        fetch('https://www.onemap.gov.sg/maps/json/raster/tilejson/2.2.0/Grey.json')
-          .then((res) => res.json())
-          .then((data) => setupMap(data))
-          .catch((err) => {
-            console.warn('Grey.json fetch fallback:', err);
-            setupMap({
-              tiles: ['https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png'],
+        };
+
+        // Query TileJSON via $.get (with fallback to fetch)
+        if (window.$ && typeof window.$.get === 'function') {
+          window.$.get(
+            'https://www.onemap.gov.sg/maps/json/raster/tilejson/2.2.0/Grey.json',
+            function (data: any) {
+              setupMapWithData(data);
+            }
+          );
+        } else {
+          fetch('https://www.onemap.gov.sg/maps/json/raster/tilejson/2.2.0/Grey.json')
+            .then((res) => res.json())
+            .then((data) => setupMapWithData(data))
+            .catch(() => {
+              setupMapWithData({
+                tiles: ['https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png'],
+              });
             });
-          });
+        }
+      } catch (err: any) {
+        console.error('Error during initMap:', err);
+        setInitError(err?.message || 'Error during map initialization');
       }
     };
 
@@ -365,290 +356,302 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
     };
   }, []);
 
-  // Helper to safely attach tooltip or popup depending on Leaflet version
-  const safeBindTooltip = (layer: any, content: string, options?: any) => {
-    if (!layer) return;
-    try {
-      if (typeof layer.bindTooltip === 'function') {
-        layer.bindTooltip(content, options);
-      } else if (typeof layer.bindPopup === 'function') {
-        layer.bindPopup(content);
-      }
-    } catch (e) {
-      console.warn('safeBindTooltip fallback:', e);
-    }
-  };
-
-  // Render expressway polylines, mascot tags, camera pins, and active route
+  // Safely render expressway polylines, mascot tags, camera pins, and active route
   const renderMapLayers = useCallback(() => {
     const map = mapInstanceRef.current;
     const L = window.L;
     if (!map || !L || !mapReady) return;
 
-    // Clear previous dynamic layers
-    layersRef.current.polylines.forEach((poly) => poly.remove());
-    layersRef.current.markers.forEach((marker) => marker.remove());
-    if (layersRef.current.routeLayer) {
-      layersRef.current.routeLayer.remove();
-      layersRef.current.routeLayer = null;
-    }
-    layersRef.current.polylines = [];
-    layersRef.current.markers = [];
-
-    // 1. Draw Expressway Polylines
-    Object.entries(EXPRESSWAYS).forEach(([id, baseData]) => {
-      const coords = EXPRESSWAY_COORDS[id];
-      if (!coords) return;
-
-      const live = liveExpressways?.[id];
-      const speed = live?.currentSpeed ?? baseData.currentSpeed;
-      const mood = live?.mood ?? baseData.mood;
-
-      const isSelected = selectedExpressway === id;
-      const isRed = mood === 'sulking' || speed < 40;
-      const isAmber = mood === 'meh' || mood === 'grumpy' || (speed >= 40 && speed < 70);
-
-      const color = isRed ? '#b91a24' : isAmber ? '#fea619' : '#10b981';
-
-      if (activeFilter === 'grumpy' && !isRed && !isAmber) return;
-
-      const polyline = L.polyline(coords.path, {
-        color,
-        weight: isSelected ? 8 : 5,
-        opacity: isSelected ? 0.95 : 0.85,
-        smoothFactor: 1,
-        lineCap: 'round',
-        lineJoin: 'round',
-      }).addTo(map);
-
-      polyline.on('click', () => {
-        onSelectExpressway(id);
-        onShowToast(`Selected ${baseData.name} (${speed} km/h • ${mood})`);
+    try {
+      // Clear previous dynamic layers safely
+      layersRef.current.polylines.forEach((poly) => {
+        try {
+          poly.remove();
+        } catch {
+          // ignore
+        }
       });
-
-      safeBindTooltip(
-        polyline,
-        `<div class="p-1 font-sans">
-          <strong>${baseData.code}</strong>: ${speed} km/h
-          <div class="text-[11px] text-gray-600">${baseData.name}</div>
-        </div>`,
-        { sticky: true }
-      );
-
-      layersRef.current.polylines.push(polyline);
-
-      // Add Mascot Marker at Expressway Center
-      const emoji = isRed ? '😤' : isAmber ? '👀' : '🏄‍♂️';
-      const mascotIcon = L.divIcon({
-        className: 'custom-mascot-pin',
-        html: `
-          <div style="
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            background: white;
-            padding: 3px 8px;
-            border-radius: 9999px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.18);
-            border: 2px solid ${color};
-            cursor: pointer;
-            font-family: inherit;
-            transform: translate(-50%, -50%);
-            white-space: nowrap;
-          ">
-            <span style="font-size: 15px;">${emoji}</span>
-            <span style="font-size: 11px; font-weight: 800; color: #211a15;">${baseData.code}</span>
-            <span style="
-              font-size: 10px;
-              font-weight: 800;
-              background: ${color};
-              color: white;
-              padding: 1px 5px;
-              border-radius: 9999px;
-            ">${speed}</span>
-          </div>
-        `,
-        iconSize: [80, 28],
-        iconAnchor: [40, 14],
+      layersRef.current.markers.forEach((marker) => {
+        try {
+          marker.remove();
+        } catch {
+          // ignore
+        }
       });
+      if (layersRef.current.routeLayer) {
+        try {
+          layersRef.current.routeLayer.remove();
+        } catch {
+          // ignore
+        }
+        layersRef.current.routeLayer = null;
+      }
+      layersRef.current.polylines = [];
+      layersRef.current.markers = [];
 
-      const mascotMarker = L.marker(coords.center, { icon: mascotIcon }).addTo(map);
-      mascotMarker.on('click', () => {
-        onSelectExpressway(id);
-        onShowToast(`Highlighting ${baseData.name} (${speed} km/h)`);
-      });
-      layersRef.current.markers.push(mascotMarker);
-    });
+      // 1. Draw Expressway Polylines
+      Object.entries(EXPRESSWAYS).forEach(([id, baseData]) => {
+        const coords = EXPRESSWAY_COORDS[id];
+        if (!coords) return;
 
-    // 2. Draw Camera Markers
-    if (activeFilter === 'all' || activeFilter === 'cameras') {
-      CAMERA_LOCATIONS.forEach((cam) => {
-        const camIcon = L.divIcon({
-          className: 'custom-cam-pin',
+        const live = liveExpressways?.[id];
+        const speed = live?.currentSpeed ?? baseData.currentSpeed;
+        const mood = live?.mood ?? baseData.mood;
+
+        const isSelected = selectedExpressway === id;
+        const isRed = mood === 'sulking' || speed < 40;
+        const isAmber = mood === 'meh' || mood === 'grumpy' || (speed >= 40 && speed < 70);
+        const color = isRed ? '#b91a24' : isAmber ? '#fea619' : '#10b981';
+
+        if (activeFilter === 'grumpy' && !isRed && !isAmber) return;
+
+        const polyline = L.polyline(coords.path, {
+          color,
+          weight: isSelected ? 8 : 5,
+          opacity: isSelected ? 0.95 : 0.85,
+          smoothFactor: 1,
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(map);
+
+        polyline.on('click', () => {
+          onSelectExpressway(id);
+          onShowToast(`Selected ${baseData.name} (${speed} km/h • ${mood})`);
+        });
+
+        if (typeof polyline.bindTooltip === 'function') {
+          polyline.bindTooltip(
+            `<div class="p-1 font-sans">
+              <strong>${baseData.code}</strong>: ${speed} km/h
+              <div class="text-[11px] text-gray-600">${baseData.name}</div>
+            </div>`,
+            { sticky: true }
+          );
+        }
+
+        layersRef.current.polylines.push(polyline);
+
+        // Add Mascot Marker at Expressway Center
+        const emoji = isRed ? '😤' : isAmber ? '👀' : '🏄‍♂️';
+        const mascotIcon = L.divIcon({
+          className: 'custom-mascot-pin',
           html: `
             <div style="
-              background: #211a15;
-              color: white;
-              width: 28px;
-              height: 28px;
-              border-radius: 50%;
               display: flex;
               align-items: center;
-              justify-content: center;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-              border: 2px solid #6ffbbe;
+              gap: 4px;
+              background: white;
+              padding: 3px 8px;
+              border-radius: 9999px;
+              box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+              border: 2px solid ${color};
               cursor: pointer;
+              font-family: inherit;
               transform: translate(-50%, -50%);
+              white-space: nowrap;
             ">
-              <span style="font-size: 14px;">📷</span>
+              <span style="font-size: 15px;">${emoji}</span>
+              <span style="font-size: 11px; font-weight: 800; color: #211a15;">${baseData.code}</span>
+              <span style="
+                font-size: 10px;
+                font-weight: 800;
+                background: ${color};
+                color: white;
+                padding: 1px 5px;
+                border-radius: 9999px;
+              ">${speed}</span>
             </div>
           `,
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
+          iconSize: [80, 28],
+          iconAnchor: [40, 14],
         });
 
-        const marker = L.marker(cam.coords, { icon: camIcon }).addTo(map);
-        marker.on('click', () => {
-          const expyData = EXPRESSWAYS[cam.expyId];
-          const foundCam = expyData?.cameras.find((c) => c.id === cam.id) || {
-            id: cam.id,
-            camNumber: cam.camNumber,
-            location: cam.name,
-            imageUrl:
-              'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=600&q=80',
-            updatedAgo: 'Live snapshot',
-            speedText: cam.speed,
-          };
-          onShowCameraModal(foundCam);
+        const mascotMarker = L.marker(coords.center, { icon: mascotIcon }).addTo(map);
+        mascotMarker.on('click', () => {
+          onSelectExpressway(id);
+          onShowToast(`Highlighting ${baseData.name} (${speed} km/h)`);
         });
-
-        safeBindTooltip(marker, `<strong>${cam.name}</strong><br/>Click to view camera feed`, {
-          direction: 'top',
-        });
-        layersRef.current.markers.push(marker);
+        layersRef.current.markers.push(mascotMarker);
       });
-    }
 
-    // 3. Draw Incident Markers
-    if (activeFilter === 'all' || activeFilter === 'incidents') {
-      INCIDENT_LOCATIONS.forEach((inc) => {
-        const incIcon = L.divIcon({
-          className: 'custom-inc-pin',
+      // 2. Draw Camera Markers
+      if (activeFilter === 'all' || activeFilter === 'cameras') {
+        CAMERA_LOCATIONS.forEach((cam) => {
+          const camIcon = L.divIcon({
+            className: 'custom-cam-pin',
+            html: `
+              <div style="
+                background: #211a15;
+                color: white;
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+                border: 2px solid #6ffbbe;
+                cursor: pointer;
+                transform: translate(-50%, -50%);
+              ">
+                <span style="font-size: 14px;">📷</span>
+              </div>
+            `,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+          });
+
+          const marker = L.marker(cam.coords, { icon: camIcon }).addTo(map);
+          marker.on('click', () => {
+            const expyData = EXPRESSWAYS[cam.expyId];
+            const foundCam = expyData?.cameras.find((c) => c.id === cam.id) || {
+              id: cam.id,
+              camNumber: cam.camNumber,
+              location: cam.name,
+              imageUrl:
+                'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=600&q=80',
+              updatedAgo: 'Live snapshot',
+              speedText: cam.speed,
+            };
+            onShowCameraModal(foundCam);
+          });
+
+          if (typeof marker.bindTooltip === 'function') {
+            marker.bindTooltip(`<strong>${cam.name}</strong><br/>Click to view camera feed`, {
+              direction: 'top',
+            });
+          }
+          layersRef.current.markers.push(marker);
+        });
+      }
+
+      // 3. Draw Incident Markers
+      if (activeFilter === 'all' || activeFilter === 'incidents') {
+        INCIDENT_LOCATIONS.forEach((inc) => {
+          const incIcon = L.divIcon({
+            className: 'custom-inc-pin',
+            html: `
+              <div style="
+                background: #b91a24;
+                color: white;
+                padding: 2px 6px;
+                border-radius: 12px;
+                font-size: 11px;
+                font-weight: 800;
+                box-shadow: 0 2px 8px rgba(185,26,36,0.4);
+                border: 2px solid white;
+                cursor: pointer;
+                transform: translate(-50%, -50%);
+                white-space: nowrap;
+              ">
+                ⚠️ ${inc.type.toUpperCase()}
+              </div>
+            `,
+            iconSize: [60, 24],
+            iconAnchor: [30, 12],
+          });
+
+          const marker = L.marker(inc.coords, { icon: incIcon }).addTo(map);
+          if (typeof marker.bindTooltip === 'function') {
+            marker.bindTooltip(`<strong>${inc.title}</strong>`, { direction: 'top' });
+          }
+          layersRef.current.markers.push(marker);
+        });
+      }
+
+      // 4. Draw Active Route Line & Endpoint Markers
+      if (isRouteActive && fromPoint?.lat && fromPoint?.lng && toPoint?.lat && toPoint?.lng) {
+        const startLatLng: [number, number] = [fromPoint.lat, fromPoint.lng];
+        const endLatLng: [number, number] = [toPoint.lat, toPoint.lng];
+
+        const routePoints: [number, number][] = [
+          startLatLng,
+          [
+            (startLatLng[0] + endLatLng[0]) / 2 + (startLatLng[0] > endLatLng[0] ? -0.01 : 0.01),
+            (startLatLng[1] + endLatLng[1]) / 2,
+          ],
+          endLatLng,
+        ];
+
+        const routeGroup = L.featureGroup ? L.featureGroup() : L.layerGroup();
+
+        // Outer glow
+        L.polyline(routePoints, {
+          color: '#6ffbbe',
+          weight: 10,
+          opacity: 0.6,
+          lineCap: 'round',
+        }).addTo(routeGroup);
+
+        // Inner stroke
+        L.polyline(routePoints, {
+          color: '#006c49',
+          weight: 5,
+          dashArray: '8, 8',
+          opacity: 0.95,
+          lineCap: 'round',
+        }).addTo(routeGroup);
+
+        const fromLabel = fromPoint.name ? fromPoint.name.split(' ')[0] : 'Origin';
+        const startIcon = L.divIcon({
+          className: 'route-start-pin',
+          html: `
+            <div style="
+              background: #006c49;
+              color: white;
+              padding: 4px 10px;
+              border-radius: 9999px;
+              font-size: 11px;
+              font-weight: 800;
+              box-shadow: 0 4px 12px rgba(0,108,73,0.4);
+              border: 2px solid white;
+              white-space: nowrap;
+              transform: translate(-50%, -100%);
+            ">
+              📍 ${fromLabel}
+            </div>
+          `,
+          iconSize: [60, 26],
+          iconAnchor: [30, 26],
+        });
+        L.marker(startLatLng, { icon: startIcon }).addTo(routeGroup);
+
+        const toLabel = toPoint.name ? toPoint.name.split(' ')[0] : 'Dest';
+        const endIcon = L.divIcon({
+          className: 'route-end-pin',
           html: `
             <div style="
               background: #b91a24;
               color: white;
-              padding: 2px 6px;
-              border-radius: 12px;
+              padding: 4px 10px;
+              border-radius: 9999px;
               font-size: 11px;
               font-weight: 800;
-              box-shadow: 0 2px 8px rgba(185,26,36,0.4);
+              box-shadow: 0 4px 12px rgba(185,26,36,0.4);
               border: 2px solid white;
-              cursor: pointer;
-              transform: translate(-50%, -50%);
               white-space: nowrap;
+              transform: translate(-50%, -100%);
             ">
-              ⚠️ ${inc.type.toUpperCase()}
+              🎯 ${toLabel}
             </div>
           `,
-          iconSize: [60, 24],
-          iconAnchor: [30, 12],
+          iconSize: [60, 26],
+          iconAnchor: [30, 26],
         });
+        L.marker(endLatLng, { icon: endIcon }).addTo(routeGroup);
 
-        const marker = L.marker(inc.coords, { icon: incIcon }).addTo(map);
-        safeBindTooltip(marker, `<strong>${inc.title}</strong>`, { direction: 'top' });
-        layersRef.current.markers.push(marker);
-      });
-    }
+        routeGroup.addTo(map);
+        layersRef.current.routeLayer = routeGroup;
 
-    // 4. Draw Active Route Line & Endpoint Markers
-    if (isRouteActive && fromPoint.lat && fromPoint.lng && toPoint.lat && toPoint.lng) {
-      const startLatLng: [number, number] = [fromPoint.lat, fromPoint.lng];
-      const endLatLng: [number, number] = [toPoint.lat, toPoint.lng];
-
-      const routePoints: [number, number][] = [
-        startLatLng,
-        [
-          (startLatLng[0] + endLatLng[0]) / 2 + (startLatLng[0] > endLatLng[0] ? -0.01 : 0.01),
-          (startLatLng[1] + endLatLng[1]) / 2,
-        ],
-        endLatLng,
-      ];
-
-      const routeGroup = L.featureGroup();
-
-      // Outer glow
-      L.polyline(routePoints, {
-        color: '#6ffbbe',
-        weight: 10,
-        opacity: 0.6,
-        lineCap: 'round',
-      }).addTo(routeGroup);
-
-      // Inner stroke
-      L.polyline(routePoints, {
-        color: '#006c49',
-        weight: 5,
-        dashArray: '8, 8',
-        opacity: 0.95,
-        lineCap: 'round',
-      }).addTo(routeGroup);
-
-      // Start Marker (Origin)
-      const startIcon = L.divIcon({
-        className: 'route-start-pin',
-        html: `
-          <div style="
-            background: #006c49;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 9999px;
-            font-size: 11px;
-            font-weight: 800;
-            box-shadow: 0 4px 12px rgba(0,108,73,0.4);
-            border: 2px solid white;
-            white-space: nowrap;
-            transform: translate(-50%, -100%);
-          ">
-            📍 ${fromPoint.name.split(' ')[0]}
-          </div>
-        `,
-        iconSize: [60, 26],
-        iconAnchor: [30, 26],
-      });
-      L.marker(startLatLng, { icon: startIcon }).addTo(routeGroup);
-
-      // End Marker (Destination)
-      const endIcon = L.divIcon({
-        className: 'route-end-pin',
-        html: `
-          <div style="
-            background: #b91a24;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 9999px;
-            font-size: 11px;
-            font-weight: 800;
-            box-shadow: 0 4px 12px rgba(185,26,36,0.4);
-            border: 2px solid white;
-            white-space: nowrap;
-            transform: translate(-50%, -100%);
-          ">
-            🎯 ${toPoint.name.split(' ')[0]}
-          </div>
-        `,
-        iconSize: [60, 26],
-        iconAnchor: [30, 26],
-      });
-      L.marker(endLatLng, { icon: endIcon }).addTo(routeGroup);
-
-      routeGroup.addTo(map);
-      layersRef.current.routeLayer = routeGroup;
-
-      map.fitBounds([startLatLng, endLatLng], {
-        padding: [60, 60],
-        maxZoom: 15,
-      });
+        if (map.fitBounds) {
+          map.fitBounds([startLatLng, endLatLng], {
+            padding: [60, 60],
+            maxZoom: 15,
+          });
+        }
+      }
+    } catch (layerErr) {
+      console.error('Error rendering map layers:', layerErr);
     }
   }, [
     mapReady,
@@ -714,6 +717,12 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
         style={{ height: '100%', minHeight: '600px', width: '100%', position: 'relative' }}
         className="z-0 flex-1 outline-none"
       />
+
+      {initError && (
+        <div className="absolute top-20 left-4 z-30 bg-red-100 border border-red-300 text-red-800 px-4 py-2 rounded-xl text-xs">
+          Map initialization notice: {initError}
+        </div>
+      )}
 
       {/* 2. Top Controls & Filter Bar */}
       <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
