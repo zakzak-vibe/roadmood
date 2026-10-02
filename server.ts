@@ -11,6 +11,7 @@ import trafficSpeedsHandler from './api/traffic-speeds.js';
 import onemapRouteHandler from './api/onemap-route.js';
 import weather2hrHandler from './api/weather-2hr.js';
 import trafficOverviewHandler from './api/traffic-overview.js';
+import trafficImagesHandler from './api/traffic-images.js';
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ async function startServer() {
   app.get('/api/traffic-speeds', (req: Request, res: Response) => trafficSpeedsHandler(req, res));
   app.get('/api/onemap-route', (req: Request, res: Response) => onemapRouteHandler(req, res));
   app.get('/api/weather-2hr', (req: Request, res: Response) => weather2hrHandler(req, res));
+  app.get('/api/traffic-images', (req: Request, res: Response) => trafficImagesHandler(req, res));
 
   if (!isProd) {
     // Development mode with Vite middleware

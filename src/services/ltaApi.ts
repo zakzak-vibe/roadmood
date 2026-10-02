@@ -153,3 +153,23 @@ export async function fetchNeaWeather2Hr(area: string = 'Kallang') {
   if (!res.ok) throw new Error(`Failed to fetch weather: ${res.statusText}`);
   return res.json();
 }
+
+export interface TrafficImageItem {
+  CameraID: string;
+  Latitude: number;
+  Longitude: number;
+  ImageLink: string;
+  Timestamp?: string;
+}
+
+export interface TrafficImagesResponse {
+  'odata.metadata': string;
+  value: TrafficImageItem[];
+}
+
+export async function fetchTrafficImages(): Promise<TrafficImagesResponse> {
+  const res = await fetch('/api/traffic-images');
+  if (!res.ok) throw new Error(`Failed to fetch traffic images: ${res.statusText}`);
+  return res.json();
+}
+

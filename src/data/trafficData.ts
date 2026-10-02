@@ -138,7 +138,7 @@ export const EXPRESSWAYS: Record<string, ExpresswayData> = {
         location: 'PIE - Woodsville Flyover',
         imageUrl:
           'https://lh3.googleusercontent.com/aida-public/AB6AXuCjXIoMO04KuAOqIFp6R61PDsMpWdnsCiBeHF8JQoLH7hQefyv4XqIT80PSzsq5-EpHVCxaWJ8QQnvf_nGECBZGbcPuJbZTQGXNy8Lhj1YF_Dd192PIuPTfRWbUrIhiIZA6LkHCBqKjrBYS7FsedmmE2xkUUDt-kn4f1oWRBJGMlA91no-D4L_7sByjLYs3MB3jRmaLdAbx7vMnE5VdBRV--OzhOw2dCTGujjtke3ezclKpq9QARyIQjA',
-        updatedAgo: '45s ago',
+        updatedAgo: 'Live snapshot',
         speedText: 'Crawling at 18 km/h',
       },
       {
@@ -146,8 +146,8 @@ export const EXPRESSWAYS: Record<string, ExpresswayData> = {
         camNumber: '4703',
         location: 'PIE - Kallang Way',
         imageUrl:
-          'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=600&q=80',
-        updatedAgo: '1m ago',
+          'https://images.data.gov.sg/api/traffic-images/2026/10/c7988e70-f77b-4a57-b08e-ff676c8c4a45.jpg',
+        updatedAgo: 'Live snapshot',
         speedText: 'Heavy crawl 22 km/h',
       },
     ],
@@ -191,8 +191,8 @@ export const EXPRESSWAYS: Record<string, ExpresswayData> = {
         camNumber: '1701',
         location: 'CTE - Moulmein Tunnel Entry',
         imageUrl:
-          'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
-        updatedAgo: '30s ago',
+          'https://images.data.gov.sg/api/traffic-images/2026/10/68493226-2e11-4347-8f55-15a95f9c4728.jpg',
+        updatedAgo: 'Live snapshot',
         speedText: 'Moderate 42 km/h',
       },
     ],
@@ -236,8 +236,8 @@ export const EXPRESSWAYS: Record<string, ExpresswayData> = {
         camNumber: '2704',
         location: 'KPE - Defu Flyover Underpass',
         imageUrl:
-          'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
-        updatedAgo: '2m ago',
+          'https://images.data.gov.sg/api/traffic-images/2026/10/0fee328f-b6fa-4f76-90dc-9b508135c1a0.jpg',
+        updatedAgo: 'Live snapshot',
         speedText: 'Paced 54 km/h',
       },
     ],
@@ -273,8 +273,8 @@ export const EXPRESSWAYS: Record<string, ExpresswayData> = {
         camNumber: '3705',
         location: 'ECP - Marine Parade Vista',
         imageUrl:
-          'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=600&q=80',
-        updatedAgo: '50s ago',
+          'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg',
+        updatedAgo: 'Live snapshot',
         speedText: 'Flourishing 84 km/h',
       },
     ],
@@ -310,8 +310,8 @@ export const EXPRESSWAYS: Record<string, ExpresswayData> = {
         camNumber: '5701',
         location: 'AYE - Clementi Ave 6 Exit',
         imageUrl:
-          'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
-        updatedAgo: '1m ago',
+          'https://images.data.gov.sg/api/traffic-images/2026/10/eaaeafd4-91c1-4ab1-8e01-1b913ffb7832.jpg',
+        updatedAgo: 'Live snapshot',
         speedText: 'Smooth 78 km/h',
       },
     ],
@@ -347,8 +347,8 @@ export const EXPRESSWAYS: Record<string, ExpresswayData> = {
         camNumber: '6701',
         location: 'SLE - Mandai Lake Flyover',
         imageUrl:
-          'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=600&q=80',
-        updatedAgo: '2m ago',
+          'https://images.data.gov.sg/api/traffic-images/2026/10/14735ec5-ed82-41e7-b67f-c1f938d2bb23.jpg',
+        updatedAgo: 'Live snapshot',
         speedText: 'Flowing 80 km/h',
       },
     ],

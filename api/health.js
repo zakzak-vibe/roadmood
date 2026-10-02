@@ -14,7 +14,8 @@ export default async function handler(req, res) {
         est_travel_times: 'http://datamall2.mytransport.sg/ltaodataservice/EstTravelTimes',
         pub_flood_alerts: 'https://datamall2.mytransport.sg/ltaodataservice/PubFloodAlerts',
         road_works: 'http://datamall2.mytransport.sg/ltaodataservice/RoadWorks',
-        traffic_speed_bands: 'http://datamall2.mytransport.sg/ltaodataservice/TrafficSpeedBands'
+        traffic_speed_bands: 'http://datamall2.mytransport.sg/ltaodataservice/TrafficSpeedBands',
+        traffic_images: 'http://datamall2.mytransport.sg/ltaodataservice/Traffic-Imagesv2'
       },
       key_configured: ltaKeyConfigured,
       status: ltaKeyConfigured ? 'ready' : 'mock_fallback (awaiting LTA_ACCOUNT_KEY)'

@@ -143,6 +143,7 @@ export const ApiHealthModal: React.FC<ApiHealthModalProps> = ({ onClose, onShowT
               { label: 'Flood Reports', path: '/api/flood-alerts' },
               { label: 'Road Works', path: '/api/road-works' },
               { label: 'Speed Bands', path: '/api/traffic-speeds' },
+              { label: 'Traffic Images', path: '/api/traffic-images' },
               { label: 'OneMap Routing', path: '/api/onemap-route' },
               { label: 'NEA 2hr Weather', path: '/api/weather-2hr' },
             ].map((btn) => (

@@ -504,16 +504,23 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
           const marker = L.marker(cam.coords, { icon: camIcon }).addTo(map);
           marker.on('click', () => {
             const expyData = EXPRESSWAYS[cam.expyId];
-            const foundCam = expyData?.cameras.find((c) => c.id === cam.id) || {
+            const liveImg = liveExpressways?.[cam.expyId]?.camImage;
+            const existingCam = expyData?.cameras.find((c) => c.id === cam.id || c.camNumber === cam.camNumber);
+            const foundCam = existingCam || {
               id: cam.id,
               camNumber: cam.camNumber,
               location: cam.name,
               imageUrl:
-                'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=600&q=80',
+                liveImg ||
+                expyData?.cameras[0]?.imageUrl ||
+                'https://images.data.gov.sg/api/traffic-images/2026/10/0fee328f-b6fa-4f76-90dc-9b508135c1a0.jpg',
               updatedAgo: 'Live snapshot',
               speedText: cam.speed,
             };
-            onShowCameraModal(foundCam);
+            onShowCameraModal({
+              ...foundCam,
+              imageUrl: liveImg || foundCam.imageUrl,
+            });
           });
 
           if (typeof marker.bindTooltip === 'function') {
