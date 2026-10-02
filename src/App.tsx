@@ -323,7 +323,7 @@ export default function App() {
       {/* Turn-by-Turn Driving Simulation Modal */}
       {isDriving && (
         <StartDriveModal
-          destination={destination || 'Changi Airport Terminal 3'}
+          routeData={routeData}
           onClose={() => {
             setIsDriving(false);
             showToast('Driving session ended. Hope your drive was smooth!');

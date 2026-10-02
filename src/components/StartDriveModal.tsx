@@ -1,49 +1,69 @@
 import React, { useState, useEffect } from 'react';
+import { RouteTripDetail } from '../data/trafficData';
 import { GrumpyMascotFace, GrinningCoolMascot, NervousAmberMascot } from './MascotIcons';
 
 interface StartDriveModalProps {
   onClose: () => void;
-  destination: string;
+  routeData: RouteTripDetail;
 }
 
-export const StartDriveModal: React.FC<StartDriveModalProps> = ({ onClose, destination }) => {
+export const StartDriveModal: React.FC<StartDriveModalProps> = ({ onClose, routeData }) => {
   const [stepIndex, setStepIndex] = useState(0);
 
-  const steps = [
-    {
-      segment: 'PIE - Pan Island Expressway',
-      speed: 22,
-      mood: 'sulking',
-      instruction: 'Continue on PIE toward Bedok North. Heavy crawl in effect.',
-      distanceRemaining: '18.4 km',
-      vibeSpeech: '“Stuck at Eunos since 7:40 AM. Two lanes crawled to a halt lah!”',
-      etaText: '38 mins remaining',
-      subText: '⚠️ Caution: Lane 1 breakdown ahead + wet road surface',
-    },
-    {
-      segment: 'KPE - Kallang-Paya Lebar Tunnel',
-      speed: 54,
-      mood: 'nervous',
-      instruction: 'In 600m, take Exit 2A toward KPE Tunnel / Airport Link.',
-      distanceRemaining: '9.8 km',
-      vibeSpeech: '“Entering the tunnel! Keep headlights on and speed steady at 54 km/h.”',
-      etaText: '19 mins remaining',
-      subText: 'Traffic flowing steadily past Defu underpass',
-    },
-    {
-      segment: 'ECP - East Coast Parkway',
-      speed: 84,
-      mood: 'grinning',
-      instruction: 'Merge smoothly onto ECP Coastal Highway toward Changi Airport T3.',
-      distanceRemaining: '3.2 km',
-      vibeSpeech: '“Breezy coastal winds! Clear runway all the way to Terminal 3! 🏄‍♂️”',
-      etaText: '4 mins remaining',
-      subText: 'Expressway is in maximum high spirits! Pure green flow.',
-    },
-  ];
+  // Dynamically generate turn-by-turn navigation stretches based on actual routeData
+  const expys = routeData.expressways || [];
 
-  const current = steps[stepIndex];
+  const totalDist = routeData.distanceKm || 15;
+  const totalMins = routeData.estMinutes || 25;
 
+  const steps = expys.map((ex, idx) => {
+    const fractionDone = idx / Math.max(expys.length, 1);
+    const distRemaining = Math.max(1.2, parseFloat((totalDist * (1 - fractionDone)).toFixed(1)));
+    const minsRemaining = Math.max(2, Math.round(totalMins * (1 - fractionDone)));
+
+    let instruction = `Continue on ${ex.code} (${ex.sectionName}) towards ${routeData.toText}.`;
+    if (idx === 0) {
+      instruction = `Merge onto ${ex.code} (${ex.sectionName}) towards ${routeData.toText}.`;
+    } else if (idx === expys.length - 1) {
+      instruction = `Approaching ${routeData.toText} via ${ex.code}. Prepare to take the destination exit.`;
+    } else {
+      instruction = `In 800m, transition onto ${ex.code} (${ex.sectionName}).`;
+    }
+
+    const subText =
+      ex.incidents && ex.incidents.length > 0
+        ? `⚠️ Caution: ${ex.incidents[0]}`
+        : `${ex.moodLabel} • Sensor speed: ${ex.speedKmH} km/h • Safe following distance`;
+
+    return {
+      segment: `${ex.code} - ${ex.sectionName}`,
+      code: ex.code,
+      speed: ex.speedKmH,
+      mood: ex.mood,
+      instruction,
+      distanceRemaining: `${distRemaining} km remaining`,
+      vibeSpeech: ex.characterQuote,
+      etaText: `${minsRemaining} mins remaining`,
+      subText,
+    };
+  });
+
+  // Add the final arrival celebration step
+  steps.push({
+    segment: `Destination: ${routeData.toText}`,
+    code: 'ARRIVED',
+    speed: 0,
+    mood: 'grinning',
+    instruction: `You have arrived at ${routeData.toText}!`,
+    distanceRemaining: '0.0 km',
+    vibeSpeech: `“Great drive! Arrived safely at ${routeData.toText}. Hope Road Moods made your commute more chill!”`,
+    etaText: 'Arrived 🏁',
+    subText: `Trip completed: ${routeData.distanceKm} km in ~${routeData.estMinutes} mins.`,
+  });
+
+  const current = steps[stepIndex] || steps[0];
+
+  // Auto-advance step every 9 seconds or manual click
   useEffect(() => {
     const timer = setInterval(() => {
       setStepIndex((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
@@ -54,7 +74,7 @@ export const StartDriveModal: React.FC<StartDriveModalProps> = ({ onClose, desti
   return (
     <div className="fixed inset-0 z-50 bg-[#211a15]/75 backdrop-blur-md flex items-center justify-center p-4">
       <div className="bg-[#fff8f5] rounded-3xl max-w-lg w-full p-6 shadow-2xl border-2 border-white flex flex-col gap-5 animate-in zoom-in-95">
-        {/* Driving Header */}
+        {/* Driving Header with Live Route Badge */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-[#10b981] animate-ping" />
@@ -64,20 +84,43 @@ export const StartDriveModal: React.FC<StartDriveModalProps> = ({ onClose, desti
           </div>
           <button
             onClick={onClose}
-            className="px-3 py-1 rounded-full bg-[#f9ebe2] hover:bg-[#eee0d6] text-[#3c4a42] text-[12px] font-bold cursor-pointer"
+            className="px-3.5 py-1 rounded-full bg-[#f9ebe2] hover:bg-[#eee0d6] text-[#3c4a42] hover:text-[#211a15] text-[12px] font-extrabold cursor-pointer transition-colors shadow-2xs"
           >
             End Drive ✕
           </button>
         </div>
 
+        {/* Dynamic Route Pill (From -> To) */}
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-[#eee0d6] text-[#211a15] shadow-xs">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#006c49] shrink-0" />
+            <span className="text-[13px] font-extrabold truncate">{routeData.fromText}</span>
+          </div>
+          <span className="material-symbols-outlined text-[16px] text-[#855300] shrink-0">
+            arrow_forward
+          </span>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#b91a24] shrink-0" />
+            <span className="text-[13px] font-extrabold truncate text-[#b91a24]">
+              {routeData.toText}
+            </span>
+          </div>
+        </div>
+
         {/* Turn-by-Turn Instruction Banner */}
         <div className="bg-[#211a15] text-white p-4 rounded-2xl flex items-center gap-4 shadow-md">
           <div className="w-12 h-12 rounded-xl bg-[#006c49] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[28px] text-white">navigation</span>
+            <span className="material-symbols-outlined text-[28px] text-white">
+              {current.code === 'ARRIVED' ? 'flag' : 'navigation'}
+            </span>
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-[17px] font-extrabold leading-snug">{current.instruction}</h3>
-            <p className="text-[12px] text-[#6ffbbe] mt-0.5">{current.distanceRemaining}</p>
+            <div className="flex items-center gap-2 mt-1 text-[12px] text-[#6ffbbe]">
+              <span>{current.distanceRemaining}</span>
+              <span>•</span>
+              <span className="text-white font-bold">{current.etaText}</span>
+            </div>
           </div>
         </div>
 
@@ -92,26 +135,32 @@ export const StartDriveModal: React.FC<StartDriveModalProps> = ({ onClose, desti
 
           <div className="relative my-2">
             <div
-              className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg ${
+              className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${
                 current.mood === 'sulking'
                   ? 'bg-[#b91a24]'
-                  : current.mood === 'nervous'
+                  : current.mood === 'meh' || current.mood === 'grumpy'
                   ? 'bg-[#fea619]'
                   : 'bg-[#10b981]'
               }`}
             >
               {current.mood === 'sulking' && <GrumpyMascotFace size={60} hasCrown={true} />}
-              {current.mood === 'nervous' && <NervousAmberMascot size={60} />}
-              {current.mood === 'grinning' && <GrinningCoolMascot size={60} />}
+              {(current.mood === 'meh' || current.mood === 'grumpy') && (
+                <NervousAmberMascot size={60} />
+              )}
+              {(current.mood === 'grinning' || current.mood === 'breezy') && (
+                <GrinningCoolMascot size={60} />
+              )}
             </div>
             {/* Speed Gauge floating pill */}
-            <span className="absolute -bottom-2 -right-2 px-2.5 py-1 rounded-full bg-[#211a15] text-white text-[12px] font-extrabold shadow-md border-2 border-white">
-              {current.speed} km/h
-            </span>
+            {current.code !== 'ARRIVED' && (
+              <span className="absolute -bottom-2 -right-2 px-2.5 py-1 rounded-full bg-[#211a15] text-white text-[12px] font-extrabold shadow-md border-2 border-white">
+                {current.speed} km/h
+              </span>
+            )}
           </div>
 
-          {/* Speech bubble */}
-          <div className="bg-[#fff1e7] text-[#211a15] italic p-3 rounded-2xl border border-[#eee0d6] text-[13px] max-w-sm">
+          {/* Speech bubble with live character quote */}
+          <div className="bg-[#fff1e7] text-[#211a15] italic p-3 rounded-2xl border border-[#eee0d6] text-[13px] max-w-sm leading-snug">
             {current.vibeSpeech}
           </div>
 
@@ -128,7 +177,7 @@ export const StartDriveModal: React.FC<StartDriveModalProps> = ({ onClose, desti
                 className={`h-2.5 rounded-full transition-all cursor-pointer ${
                   i === stepIndex ? 'w-8 bg-[#006c49]' : 'w-2.5 bg-[#eee0d6]'
                 }`}
-                title={`Go to step ${i + 1}`}
+                title={`Stretch ${i + 1}`}
               />
             ))}
           </div>
@@ -137,7 +186,7 @@ export const StartDriveModal: React.FC<StartDriveModalProps> = ({ onClose, desti
             <button
               onClick={() => setStepIndex((prev) => Math.max(0, prev - 1))}
               disabled={stepIndex === 0}
-              className="px-3 py-1.5 rounded-full bg-[#fff1e7] disabled:opacity-40 text-[12px] font-bold text-[#3c4a42] cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full bg-[#fff1e7] hover:bg-[#f9ebe2] disabled:opacity-40 text-[12px] font-bold text-[#3c4a42] cursor-pointer"
             >
               Previous
             </button>
@@ -149,9 +198,11 @@ export const StartDriveModal: React.FC<StartDriveModalProps> = ({ onClose, desti
                   onClose();
                 }
               }}
-              className="px-4 py-1.5 rounded-full bg-[#006c49] text-white text-[12px] font-extrabold shadow-sm hover:bg-[#10b981] cursor-pointer"
+              className="px-4 py-1.5 rounded-full bg-[#006c49] text-white text-[12px] font-extrabold shadow-sm hover:bg-[#10b981] cursor-pointer active:scale-95 transition-all"
             >
-              {stepIndex < steps.length - 1 ? 'Next Stretch →' : 'Arrived at Changi! ✈️'}
+              {stepIndex < steps.length - 1
+                ? 'Next Stretch →'
+                : `Arrived at ${routeData.toText.split(' ')[0]}! 🏁`}
             </button>
           </div>
         </div>
