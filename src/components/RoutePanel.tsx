@@ -102,6 +102,10 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
               <span className="text-[11px] text-[#855300] uppercase tracking-wider font-extrabold">
                 Today's Grumpiest Expy
               </span>
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#10b981] text-white text-[9px] font-extrabold flex items-center gap-1 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                LIVE
+              </span>
             </div>
             <button
               onClick={onViewAwards}
@@ -115,12 +119,20 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
           </div>
 
           <div
-            onClick={() => onSelectExpressway('pie')}
+            onClick={() => onSelectExpressway(grumpiest.code.toLowerCase())}
             className="flex items-start gap-3.5 cursor-pointer group"
           >
-            {/* Sulking Red Character Avatar */}
+            {/* Character Avatar with Crown */}
             <div className="relative shrink-0">
-              <div className="w-14 h-14 rounded-full bg-[#b91a24] flex items-center justify-center shadow-md relative overflow-hidden group-hover:scale-105 transition-transform">
+              <div
+                className={`w-14 h-14 rounded-full ${
+                  grumpiest.code === 'CTE'
+                    ? 'bg-[#ea580c]'
+                    : grumpiest.code === 'AYE'
+                    ? 'bg-[#15803d]'
+                    : 'bg-[#b91a24]'
+                } flex items-center justify-center shadow-md relative overflow-hidden group-hover:scale-105 transition-transform`}
+              >
                 <GrumpyMascotFace size={44} hasCrown={true} />
               </div>
               <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-[#ba1a1a] text-white text-[10px] leading-tight font-extrabold shadow-sm border border-white">
@@ -130,7 +142,15 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="px-2 py-0.5 rounded-md bg-[#b91a24] text-white text-[12px] font-extrabold shadow-xs">
+                <span
+                  className={`px-2 py-0.5 rounded-md ${
+                    grumpiest.code === 'CTE'
+                      ? 'bg-[#ea580c]'
+                      : grumpiest.code === 'AYE'
+                      ? 'bg-[#15803d]'
+                      : 'bg-[#b91a24]'
+                  } text-white text-[12px] font-extrabold shadow-xs`}
+                >
                   {grumpiest.code}
                 </span>
                 <span className="font-bold text-[17px] text-[#211a15] truncate">

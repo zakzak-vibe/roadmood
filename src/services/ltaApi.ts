@@ -93,44 +93,58 @@ export interface OneMapRouteResponse {
   };
 }
 
+export function getSavedCredentials() {
+  const ltaKey = typeof window !== 'undefined' ? localStorage.getItem('roadmood_lta_key') || '' : '';
+  const onemapToken = typeof window !== 'undefined' ? localStorage.getItem('roadmood_onemap_token') || '' : '';
+  return { ltaKey, onemapToken };
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const { ltaKey, onemapToken } = getSavedCredentials();
+  const headers: Record<string, string> = {};
+  if (ltaKey) headers['x-lta-key'] = ltaKey;
+  if (onemapToken) headers['x-onemap-token'] = onemapToken;
+  return headers;
+}
+
 export async function fetchTrafficOverview(): Promise<TrafficOverviewResponse> {
-  const res = await fetch('/api/traffic-overview');
+  const res = await fetch('/api/traffic-overview', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`Failed to fetch traffic overview: ${res.statusText}`);
   return res.json();
 }
 
 export async function fetchApiHealth(): Promise<ApiHealthResponse> {
-  const res = await fetch('/api/health');
+  const res = await fetch('/api/health', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`Health check failed: ${res.statusText}`);
   return res.json();
 }
 
 export async function fetchTrafficIncidents() {
-  const res = await fetch('/api/traffic-incidents');
+  const res = await fetch('/api/traffic-incidents', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`Failed to fetch incidents: ${res.statusText}`);
   return res.json();
 }
 
 export async function fetchTravelTimes() {
-  const res = await fetch('/api/travel-times');
+  const res = await fetch('/api/travel-times', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`Failed to fetch travel times: ${res.statusText}`);
   return res.json();
 }
 
 export async function fetchFloodAlerts() {
-  const res = await fetch('/api/flood-alerts');
+  const res = await fetch('/api/flood-alerts', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`Failed to fetch flood alerts: ${res.statusText}`);
   return res.json();
 }
 
 export async function fetchRoadWorks() {
-  const res = await fetch('/api/road-works');
+  const res = await fetch('/api/road-works', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`Failed to fetch road works: ${res.statusText}`);
   return res.json();
 }
 
 export async function fetchTrafficSpeeds() {
-  const res = await fetch('/api/traffic-speeds');
+  const res = await fetch('/api/traffic-speeds', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`Failed to fetch traffic speeds: ${res.statusText}`);
   return res.json();
 }
@@ -142,7 +156,8 @@ export async function fetchOneMapRoute(
   const res = await fetch(
     `/api/onemap-route?start=${encodeURIComponent(startLatLon)}&end=${encodeURIComponent(
       endLatLon
-    )}&routeType=drive`
+    )}&routeType=drive`,
+    { headers: getAuthHeaders() }
   );
   if (!res.ok) throw new Error(`Failed to fetch OneMap route: ${res.statusText}`);
   return res.json();

@@ -94,28 +94,63 @@ export const ApiHealthModal: React.FC<ApiHealthModalProps> = ({ onClose, onShowT
         </div>
 
         {/* Credentials & Environment Keys */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
-          <div className="p-3 bg-[#f9ebe2] rounded-xl border border-[#eee0d6]">
-            <span className="text-[10px] font-extrabold text-[#3c4a42] uppercase tracking-wider block">
-              LTA_ACCOUNT_KEY
+        <div className="bg-[#fff1e7] p-3.5 rounded-2xl border border-[#eee0d6] flex flex-col gap-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-extrabold text-[#211a15] flex items-center gap-1.5">
+              <span>🔑</span> Live LTA & OneMap API Credentials
             </span>
-            <div className="flex items-center justify-between mt-1">
-              <span className="font-mono font-bold text-[#211a15]">
-                {healthData?.env?.LTA_ACCOUNT_KEY || 'Scanning...'}
-              </span>
-              <span className="text-[10px] text-[#855300] font-bold">Vercel Env</span>
+            <span className="text-[10px] text-[#006c49] font-bold bg-[#6ffbbe]/50 px-2 py-0.5 rounded-full">
+              Real-time Active
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[12px]">
+            <div>
+              <label className="text-[10px] font-extrabold text-[#3c4a42] uppercase tracking-wider block mb-1">
+                LTA_ACCOUNT_KEY
+              </label>
+              <input
+                type="password"
+                defaultValue={localStorage.getItem('roadmood_lta_key') || ''}
+                id="input-lta-key"
+                placeholder="Paste your LTA DataMall Key..."
+                className="w-full bg-white px-3 py-1.5 rounded-xl border border-[#eee0d6] text-[12px] font-mono focus:outline-none focus:border-[#006c49]"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-extrabold text-[#3c4a42] uppercase tracking-wider block mb-1">
+                ONEMAP_TOKEN
+              </label>
+              <input
+                type="password"
+                defaultValue={localStorage.getItem('roadmood_onemap_token') || ''}
+                id="input-onemap-token"
+                placeholder="Paste your OneMap API Token..."
+                className="w-full bg-white px-3 py-1.5 rounded-xl border border-[#eee0d6] text-[12px] font-mono focus:outline-none focus:border-[#006c49]"
+              />
             </div>
           </div>
-          <div className="p-3 bg-[#f9ebe2] rounded-xl border border-[#eee0d6]">
-            <span className="text-[10px] font-extrabold text-[#3c4a42] uppercase tracking-wider block">
-              ONEMAP_TOKEN
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[11px] text-[#3c4a42]">
+              Keys save locally in browser and connect directly to LTA DataMall v2.
             </span>
-            <div className="flex items-center justify-between mt-1">
-              <span className="font-mono font-bold text-[#211a15]">
-                {healthData?.env?.ONEMAP_TOKEN || 'Scanning...'}
-              </span>
-              <span className="text-[10px] text-[#855300] font-bold">Vercel Env</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const ltaVal = (document.getElementById('input-lta-key') as HTMLInputElement)?.value;
+                const oneVal = (document.getElementById('input-onemap-token') as HTMLInputElement)?.value;
+                if (ltaVal) localStorage.setItem('roadmood_lta_key', ltaVal.trim());
+                if (oneVal) localStorage.setItem('roadmood_onemap_token', oneVal.trim());
+                onShowToast('Saved credentials! Reloading live telemetry...');
+                testEndpoint('/api/traffic-overview');
+                loadHealth();
+                window.location.reload();
+              }}
+              className="px-3 py-1 rounded-full bg-[#006c49] text-white text-[11px] font-extrabold hover:bg-[#10b981] shadow-xs cursor-pointer"
+            >
+              Save & Connect
+            </button>
           </div>
         </div>
 

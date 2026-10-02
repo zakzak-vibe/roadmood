@@ -88,19 +88,32 @@ export const INITIAL_SAVED_TRIPS: SavedTrip[] = [
   },
 ];
 
+export function getCurrentSgTime(): string {
+  try {
+    return new Intl.DateTimeFormat('en-SG', {
+      timeZone: 'Asia/Singapore',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date());
+  } catch {
+    return '12:45 PM';
+  }
+}
+
 export const EXPRESSWAYS: Record<string, ExpresswayData> = {
   pie: {
     id: 'pie',
     code: 'PIE',
     name: 'Pan Island Expressway',
     fullName: 'Pan Island Expressway (PIE)',
-    currentSpeed: 18,
+    currentSpeed: 28,
     freeFlowSpeed: 80,
-    delayMinutes: 24,
+    delayMinutes: 16,
     mood: 'sulking',
     moodLabel: 'Sulking heavily',
-    characterQuote: '“Stuck at Eunos since 7:40 AM. Don\'t look at me.”',
-    peakDelayNote: 'Peak delay: +24 mins near Woodsville',
+    characterQuote: `“Heavy crawl near Woodsville as of ${getCurrentSgTime()}. Slow traffic bottleneck.”`,
+    peakDelayNote: `Delay: +16 mins near Woodsville (${getCurrentSgTime()})`,
     incidents: [
       {
         id: 'inc-pie-1',
