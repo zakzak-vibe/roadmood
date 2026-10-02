@@ -488,6 +488,25 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
                 </span>
               </div>
 
+              {/* Input Route Display Badge (From → To) */}
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#fff1e7] border border-[#eee0d6] text-[#211a15] shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#006c49] shrink-0" />
+                  <span className="text-[13px] font-extrabold truncate">
+                    {origin.replace('📍 ', '') || 'Toa Payoh Central'}
+                  </span>
+                </div>
+                <span className="material-symbols-outlined text-[16px] text-[#855300] shrink-0">
+                  arrow_forward
+                </span>
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#b91a24] shrink-0" />
+                  <span className="text-[13px] font-extrabold truncate text-[#b91a24]">
+                    {destination.replace('📍 ', '') || 'Changi Airport Terminal 3'}
+                  </span>
+                </div>
+              </div>
+
               <h3 className="text-[20px] font-extrabold text-[#211a15] tracking-tight leading-snug">
                 {routeData.recommendationTitle}
               </h3>
@@ -522,7 +541,9 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
                 <span className="text-xl shrink-0 mt-0.5">💡</span>
                 <div>
                   <p className="text-[13px] font-bold text-[#005236] leading-tight">
-                    Wait 15 min, save 9 min!
+                    {routeData.delayMinutes > 5
+                      ? `Wait 15 min, save ${Math.min(routeData.delayMinutes, 10)} min!`
+                      : 'Optimal Route Flow!'}
                   </p>
                   <p className="text-[11px] text-[#005236]/90 mt-0.5 leading-snug">
                     {routeData.smartTip}

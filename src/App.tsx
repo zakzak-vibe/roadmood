@@ -41,7 +41,34 @@ export default function App() {
   // Live telemetry state from endpoints
   const [liveOverview, setLiveOverview] = useState<TrafficOverviewResponse | null>(null);
   const [isLiveActive, setIsLiveActive] = useState<boolean>(false);
-  const [routeData, setRouteData] = useState<RouteTripDetail>(CHANGI_TRIP_DATA);
+  const [routeData, setRouteData] = useState<RouteTripDetail>(() => {
+    const computed = computeMoodRoute('Toa Payoh Central', 'Changi Airport Terminal 3');
+    return {
+      fromText: 'Toa Payoh Central',
+      toText: 'Changi Airport Terminal 3',
+      estMinutes: computed.estMinutes,
+      delayMinutes: computed.delayMinutes,
+      distanceKm: computed.totalDistanceKm,
+      recommendationTitle: computed.recommendationTitle,
+      smartTip: computed.smartTip,
+      weatherWarning: {
+        title: 'NEA WEATHER',
+        updatedAgo: 'Live Forecast',
+        description: 'Partly Cloudy over route corridor. Drive with safe distance.',
+      },
+      expressways: computed.expresswaysOnRoute.map((e) => ({
+        expresswayId: e.code.toLowerCase(),
+        code: e.code,
+        sectionName: e.sectionName,
+        distanceKm: e.distanceKm,
+        speedKmH: e.speedKmH,
+        moodLabel: e.moodLabel,
+        mood: e.mood,
+        characterQuote: e.quote,
+        incidents: e.incidents,
+      })),
+    };
+  });
 
   // Informational Dialogs
   const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
@@ -54,58 +81,6 @@ export default function App() {
       const data = await fetchTrafficOverview();
       setLiveOverview(data);
       setIsLiveActive(true);
-
-      // Dynamically update routeData with live speeds and weather
-      if (data.expressways) {
-        setRouteData((prev) => {
-          const pieLive = data.expressways.pie;
-          const kpeLive = data.expressways.kpe;
-          const ecpLive = data.expressways.ecp;
-
-          const updatedExpys = prev.expressways.map((ex) => {
-            if (ex.code === 'PIE' && pieLive) {
-              return {
-                ...ex,
-                speedKmH: pieLive.currentSpeed,
-                mood: pieLive.mood as any,
-                moodLabel: pieLive.moodLabel,
-                characterQuote: pieLive.quote,
-              };
-            }
-            if (ex.code === 'KPE' && kpeLive) {
-              return {
-                ...ex,
-                speedKmH: kpeLive.currentSpeed,
-                mood: kpeLive.mood as any,
-                moodLabel: kpeLive.moodLabel,
-                characterQuote: kpeLive.quote,
-              };
-            }
-            if (ex.code === 'ECP' && ecpLive) {
-              return {
-                ...ex,
-                speedKmH: ecpLive.currentSpeed,
-                mood: ecpLive.mood as any,
-                moodLabel: ecpLive.moodLabel,
-                characterQuote: ecpLive.quote,
-              };
-            }
-            return ex;
-          });
-
-          return {
-            ...prev,
-            weatherWarning: {
-              title: data.weather?.forecast ? `NEA: ${data.weather.forecast.toUpperCase()}` : prev.weatherWarning.title,
-              updatedAgo: 'Live Forecast',
-              description: data.weather?.forecast
-                ? `${data.weather.forecast} over ${data.weather.area || 'eastern expressway corridor'}. Drive with caution.`
-                : prev.weatherWarning.description,
-            },
-            expressways: updatedExpys,
-          };
-        });
-      }
     } catch (err) {
       console.warn('Failed to pull live traffic overview:', err);
     }
@@ -124,77 +99,57 @@ export default function App() {
 
     const computed = computeMoodRoute(origin, destination, liveOverview?.expressways);
 
-    // Call OneMap route API with the resolved coordinates
+    // 1. Immediately set routeData synchronously from the computed route so inputs match instantly!
+    setRouteData({
+      fromText: origin.replace('📍 ', ''),
+      toText: destination.replace('📍 ', ''),
+      estMinutes: computed.estMinutes,
+      delayMinutes: computed.delayMinutes,
+      distanceKm: computed.totalDistanceKm,
+      recommendationTitle: computed.recommendationTitle,
+      smartTip: computed.smartTip,
+      weatherWarning: {
+        title: liveOverview?.weather?.forecast
+          ? `NEA: ${liveOverview.weather.forecast.toUpperCase()}`
+          : 'NEA WEATHER',
+        updatedAgo: 'Live Forecast',
+        description: liveOverview?.weather?.forecast
+          ? `${liveOverview.weather.forecast} over ${computed.toLoc.name}. Drive with safe distance.`
+          : `Drive with safe distance on route to ${computed.toLoc.name}.`,
+      },
+      expressways: computed.expresswaysOnRoute.map((e) => ({
+        expresswayId: e.code.toLowerCase(),
+        code: e.code,
+        sectionName: e.sectionName,
+        distanceKm: e.distanceKm,
+        speedKmH: e.speedKmH,
+        moodLabel: e.moodLabel,
+        mood: e.mood,
+        characterQuote: e.quote,
+        incidents: e.incidents,
+      })),
+    });
+
+    // 2. Asynchronously query OneMap route API with the resolved coordinates to refine if available
     const startCoord = `${computed.fromLoc.lat},${computed.fromLoc.lng}`;
     const endCoord = `${computed.toLoc.lat},${computed.toLoc.lng}`;
 
     fetchOneMapRoute(startCoord, endCoord)
       .then((oneMapRes) => {
-        let estMins = computed.estMinutes;
-        let distKm = computed.totalDistanceKm;
-
         if (oneMapRes && oneMapRes.route_summary && oneMapRes.route_summary.total_time > 0) {
-          estMins = Math.round(oneMapRes.route_summary.total_time / 60);
-          distKm = parseFloat((oneMapRes.route_summary.total_distance / 1000).toFixed(1));
-        }
+          const estMins = Math.round(oneMapRes.route_summary.total_time / 60);
+          const distKm = parseFloat((oneMapRes.route_summary.total_distance / 1000).toFixed(1));
 
-        setRouteData({
-          fromText: computed.fromLoc.name,
-          toText: computed.toLoc.name,
-          estMinutes: estMins,
-          delayMinutes: Math.max(0, estMins - Math.round(distKm * 0.85)),
-          distanceKm: distKm,
-          recommendationTitle: computed.recommendationTitle,
-          smartTip: computed.smartTip,
-          weatherWarning: {
-            title: liveOverview?.weather?.forecast
-              ? `NEA: ${liveOverview.weather.forecast.toUpperCase()}`
-              : 'NEA WEATHER',
-            updatedAgo: 'Live Forecast',
-            description: liveOverview?.weather?.forecast
-              ? `${liveOverview.weather.forecast} over ${computed.toLoc.name}. Drive with safe distance.`
-              : 'Drive with extra caution and allow safe braking distance.',
-          },
-          expressways: computed.expresswaysOnRoute.map((e) => ({
-            expresswayId: e.code.toLowerCase(),
-            code: e.code,
-            sectionName: e.sectionName,
-            distanceKm: e.distanceKm,
-            speedKmH: e.speedKmH,
-            moodLabel: e.moodLabel,
-            mood: e.mood,
-            characterQuote: e.quote,
-            incidents: e.incidents,
-          })),
-        });
+          setRouteData((prev) => ({
+            ...prev,
+            estMinutes: estMins,
+            distanceKm: distKm,
+            delayMinutes: Math.max(0, estMins - Math.round(distKm * 0.85)),
+          }));
+        }
       })
       .catch((err) => {
-        console.warn('OneMap fetch error, using computed route:', err);
-        setRouteData({
-          fromText: computed.fromLoc.name,
-          toText: computed.toLoc.name,
-          estMinutes: computed.estMinutes,
-          delayMinutes: computed.delayMinutes,
-          distanceKm: computed.totalDistanceKm,
-          recommendationTitle: computed.recommendationTitle,
-          smartTip: computed.smartTip,
-          weatherWarning: {
-            title: 'NEA WEATHER',
-            updatedAgo: 'Live Forecast',
-            description: `Drive with safe distance on route to ${computed.toLoc.name}.`,
-          },
-          expressways: computed.expresswaysOnRoute.map((e) => ({
-            expresswayId: e.code.toLowerCase(),
-            code: e.code,
-            sectionName: e.sectionName,
-            distanceKm: e.distanceKm,
-            speedKmH: e.speedKmH,
-            moodLabel: e.moodLabel,
-            mood: e.mood,
-            characterQuote: e.quote,
-            incidents: e.incidents,
-          })),
-        });
+        console.warn('OneMap fetch error, keeping computed route:', err);
       });
   }, [origin, destination, liveOverview]);
 
