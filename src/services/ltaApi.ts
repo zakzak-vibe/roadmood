@@ -159,6 +159,8 @@ export interface TrafficImageItem {
   Latitude: number;
   Longitude: number;
   ImageLink: string;
+  Location?: string;
+  Expressway?: string;
   Timestamp?: string;
 }
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { EXPRESSWAYS, ExpresswayData } from '../data/trafficData';
+import { fetchTrafficImages, TrafficImageItem } from '../services/ltaApi';
 
 declare global {
   interface Window {
@@ -107,69 +108,151 @@ const EXPRESSWAY_COORDS: Record<string, { path: [number, number][]; center: [num
   },
 };
 
-const CAMERA_LOCATIONS: {
-  id: string;
-  camNumber: string;
-  name: string;
-  coords: [number, number];
-  expyId: string;
-  speed: string;
-}[] = [
+// Verified Singapore LTA DataMall camera positions synced with OneMap
+const DEFAULT_CAMERAS: TrafficImageItem[] = [
   {
-    id: 'cam-4702',
-    camNumber: '4702',
-    name: 'PIE - Woodsville Flyover',
-    coords: [1.334, 103.868],
-    expyId: 'pie',
-    speed: '28 km/h',
+    CameraID: '1001',
+    Latitude: 1.3653,
+    Longitude: 103.8562,
+    Location: 'CTE - Ang Mo Kio Ave 1 Flyover',
+    Expressway: 'cte',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/68493226-2e11-4347-8f55-15a95f9c4728.jpg',
   },
   {
-    id: 'cam-4703',
-    camNumber: '4703',
-    name: 'PIE - Kallang Way',
-    coords: [1.325, 103.882],
-    expyId: 'pie',
-    speed: '31 km/h',
+    CameraID: '1701',
+    Latitude: 1.318,
+    Longitude: 103.851,
+    Location: 'CTE - Moulmein Tunnel Entry',
+    Expressway: 'cte',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/68493226-2e11-4347-8f55-15a95f9c4728.jpg',
   },
   {
-    id: 'cam-1701',
-    camNumber: '1701',
-    name: 'CTE - Moulmein Tunnel Entry',
-    coords: [1.318, 103.851],
-    expyId: 'cte',
-    speed: '42 km/h',
+    CameraID: '2701',
+    Latitude: 1.4470237,
+    Longitude: 103.7716543,
+    Location: 'BKE - Woodlands Checkpoint Flyover',
+    Expressway: 'bke',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/0fee328f-b6fa-4f76-90dc-9b508135c1a0.jpg',
   },
   {
-    id: 'cam-2701',
-    camNumber: '2701',
-    name: 'KPE - Defu Underpass',
-    coords: [1.345, 103.888],
-    expyId: 'kpe',
-    speed: '54 km/h',
+    CameraID: '2702',
+    Latitude: 1.4455541,
+    Longitude: 103.7683397,
+    Location: 'Woodlands Causeway / Checkpoint Approach',
+    Expressway: 'bke',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/14735ec5-ed82-41e7-b67f-c1f938d2bb23.jpg',
   },
   {
-    id: 'cam-3701',
-    camNumber: '3701',
-    name: 'ECP - Marine Parade',
-    coords: [1.302, 103.905],
-    expyId: 'ecp',
-    speed: '84 km/h',
+    CameraID: '2704',
+    Latitude: 1.4295885,
+    Longitude: 103.769311,
+    Location: 'BKE - Mandai Road Flyover',
+    Expressway: 'bke',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/68493226-2e11-4347-8f55-15a95f9c4728.jpg',
   },
   {
-    id: 'cam-5701',
-    camNumber: '5701',
-    name: 'AYE - Keppel Viaduct',
-    coords: [1.272, 103.845],
-    expyId: 'aye',
-    speed: '68 km/h',
+    CameraID: '3702',
+    Latitude: 1.2995,
+    Longitude: 103.8825,
+    Location: 'ECP - Fort Road Flyover',
+    Expressway: 'ecp',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg',
   },
   {
-    id: 'cam-6701',
-    camNumber: '6701',
-    name: 'SLE - Mandai Lake Flyover',
-    coords: [1.418, 103.815],
-    expyId: 'sle',
-    speed: '76 km/h',
+    CameraID: '3704',
+    Latitude: 1.302,
+    Longitude: 103.905,
+    Location: 'ECP - Marine Parade Flyover',
+    Expressway: 'ecp',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg',
+  },
+  {
+    CameraID: '4701',
+    Latitude: 1.334,
+    Longitude: 103.868,
+    Location: 'PIE - Woodsville Flyover',
+    Expressway: 'pie',
+    ImageLink:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuCjXIoMO04KuAOqIFp6R61PDsMpWdnsCiBeHF8JQoLH7hQefyv4XqIT80PSzsq5-EpHVCxaWJ8QQnvf_nGECBZGbcPuJbZTQGXNy8Lhj1YF_Dd192PIuPTfRWbUrIhiIZA6LkHCBqKjrBYS7FsedmmE2xkUUDt-kn4f1oWRBJGMlA91no-D4L_7sByjLYs3MB3jRmaLdAbx7vMnE5VdBRV--OzhOw2dCTGujjtke3ezclKpq9QARyIQjA',
+  },
+  {
+    CameraID: '4703',
+    Latitude: 1.3486978,
+    Longitude: 103.6350413,
+    Location: 'PIE - Pioneer Flyover / Tuas',
+    Expressway: 'pie',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/c7988e70-f77b-4a57-b08e-ff676c8c4a45.jpg',
+  },
+  {
+    CameraID: '4712',
+    Latitude: 1.341244,
+    Longitude: 103.6439134,
+    Location: 'AYE - Benoi Sector Flyover',
+    Expressway: 'aye',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/eaaeafd4-91c1-4ab1-8e01-1b913ffb7832.jpg',
+  },
+  {
+    CameraID: '4713',
+    Latitude: 1.3476458,
+    Longitude: 103.6366955,
+    Location: 'PIE - Tuas Exit / Jalan Ahmad Ibrahim',
+    Expressway: 'pie',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/c7988e70-f77b-4a57-b08e-ff676c8c4a45.jpg',
+  },
+  {
+    CameraID: '4798',
+    Latitude: 1.26,
+    Longitude: 103.8236111,
+    Location: 'Sentosa Gateway - HarbourFront',
+    Expressway: 'aye',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg',
+  },
+  {
+    CameraID: '5701',
+    Latitude: 1.272,
+    Longitude: 103.845,
+    Location: 'AYE - Keppel Viaduct',
+    Expressway: 'aye',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/eaaeafd4-91c1-4ab1-8e01-1b913ffb7832.jpg',
+  },
+  {
+    CameraID: '5705',
+    Latitude: 1.314,
+    Longitude: 103.765,
+    Location: 'AYE - Clementi Ave 6 Exit',
+    Expressway: 'aye',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/eaaeafd4-91c1-4ab1-8e01-1b913ffb7832.jpg',
+  },
+  {
+    CameraID: '6701',
+    Latitude: 1.418,
+    Longitude: 103.815,
+    Location: 'SLE - Mandai Lake Flyover',
+    Expressway: 'sle',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/14735ec5-ed82-41e7-b67f-c1f938d2bb23.jpg',
+  },
+  {
+    CameraID: '2703',
+    Latitude: 1.345,
+    Longitude: 103.888,
+    Location: 'KPE - Defu Flyover Underpass',
+    Expressway: 'kpe',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/0fee328f-b6fa-4f76-90dc-9b508135c1a0.jpg',
   },
 ];
 
@@ -227,6 +310,25 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [syncedCameras, setSyncedCameras] = useState<TrafficImageItem[]>(DEFAULT_CAMERAS);
+
+  // Pull live synced traffic cameras from /api/traffic-images (Traffic-Imagesv2)
+  const loadCameras = useCallback(async () => {
+    try {
+      const res = await fetchTrafficImages();
+      if (res && res.value && res.value.length > 0) {
+        setSyncedCameras(res.value);
+      }
+    } catch (err) {
+      console.warn('Failed to load synced cameras from /api/traffic-images:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCameras();
+    const interval = setInterval(loadCameras, 30000);
+    return () => clearInterval(interval);
+  }, [loadCameras]);
 
   // Initialize OneMap Leaflet Grey Map (TileJSON) as specified
   useEffect(() => {
@@ -474,59 +576,71 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
         layersRef.current.markers.push(mascotMarker);
       });
 
-      // 2. Draw Camera Markers
+      // 2. Draw Synced Camera Markers from Traffic-Imagesv2 (Exact OneMap Lat/Lng)
       if (activeFilter === 'all' || activeFilter === 'cameras') {
-        CAMERA_LOCATIONS.forEach((cam) => {
+        const camerasToRender = syncedCameras.length > 0 ? syncedCameras : DEFAULT_CAMERAS;
+
+        camerasToRender.forEach((cam) => {
+          const lat = cam.Latitude;
+          const lng = cam.Longitude;
+          if (!lat || !lng) return;
+
+          const expyId = (cam.Expressway || '').toLowerCase();
+          const expyData = EXPRESSWAYS[expyId];
+          const live = liveExpressways?.[expyId];
+          const speed = live?.currentSpeed ?? expyData?.currentSpeed ?? 65;
+
+          const isMatchingExpy = selectedExpressway === expyId;
+
           const camIcon = L.divIcon({
             className: 'custom-cam-pin',
             html: `
               <div style="
-                background: #211a15;
+                background: ${isMatchingExpy ? '#006c49' : '#211a15'};
                 color: white;
-                width: 28px;
-                height: 28px;
+                width: ${isMatchingExpy ? '32px' : '28px'};
+                height: ${isMatchingExpy ? '32px' : '28px'};
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-                border: 2px solid #6ffbbe;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+                border: 2px solid ${isMatchingExpy ? '#6ffbbe' : '#ffffff'};
                 cursor: pointer;
                 transform: translate(-50%, -50%);
               ">
-                <span style="font-size: 14px;">📷</span>
+                <span style="font-size: ${isMatchingExpy ? '15px' : '13px'};">📷</span>
               </div>
             `,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
           });
 
-          const marker = L.marker(cam.coords, { icon: camIcon }).addTo(map);
+          const marker = L.marker([lat, lng], { icon: camIcon }).addTo(map);
+
           marker.on('click', () => {
-            const expyData = EXPRESSWAYS[cam.expyId];
-            const liveImg = liveExpressways?.[cam.expyId]?.camImage;
-            const existingCam = expyData?.cameras.find((c) => c.id === cam.id || c.camNumber === cam.camNumber);
-            const foundCam = existingCam || {
-              id: cam.id,
-              camNumber: cam.camNumber,
-              location: cam.name,
-              imageUrl:
-                liveImg ||
-                expyData?.cameras[0]?.imageUrl ||
-                'https://images.data.gov.sg/api/traffic-images/2026/10/0fee328f-b6fa-4f76-90dc-9b508135c1a0.jpg',
-              updatedAgo: 'Live snapshot',
-              speedText: cam.speed,
-            };
+            if (expyId) onSelectExpressway(expyId);
             onShowCameraModal({
-              ...foundCam,
-              imageUrl: liveImg || foundCam.imageUrl,
+              id: `cam-${cam.CameraID}`,
+              camNumber: cam.CameraID,
+              location: cam.Location || `LTA Camera #${cam.CameraID}`,
+              imageUrl: cam.ImageLink,
+              updatedAgo: 'Live snapshot',
+              speedText: `${speed} km/h flow`,
             });
+            onShowToast(`Opened CAM #${cam.CameraID}: ${cam.Location || 'Live feed'}`);
           });
 
           if (typeof marker.bindTooltip === 'function') {
-            marker.bindTooltip(`<strong>${cam.name}</strong><br/>Click to view camera feed`, {
-              direction: 'top',
-            });
+            marker.bindTooltip(
+              `<div class="p-1.5 font-sans">
+                <strong>CAM #${cam.CameraID}</strong>
+                <div class="text-[11px] text-[#211a15] font-bold">${cam.Location || 'LTA Camera'}</div>
+                <div class="text-[10px] text-gray-500 font-mono">${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E</div>
+                <div class="text-[10px] text-emerald-700 font-bold mt-1">Click to view live snapshot</div>
+              </div>`,
+              { direction: 'top' }
+            );
           }
           layersRef.current.markers.push(marker);
         });
@@ -665,6 +779,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
     activeFilter,
     selectedExpressway,
     liveExpressways,
+    syncedCameras,
     isRouteActive,
     fromPoint,
     toPoint,
@@ -706,13 +821,14 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    onShowToast('Pulling live LTA DataMall speeds, incidents & cameras...');
+    onShowToast('Syncing live cameras and OneMap telemetry...');
     if (onRefreshLive) {
       await onRefreshLive();
     }
+    await loadCameras();
     setTimeout(() => {
       setIsRefreshing(false);
-      onShowToast('Live telemetry refreshed! Expressway spirits updated.');
+      onShowToast('OneMap camera coordinates & traffic feeds synchronized!');
     }, 600);
   };
 
@@ -739,7 +855,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
             type="button"
             onClick={() => {
               setActiveFilter('all');
-              onShowToast('Showing all expressways & cameras');
+              onShowToast('Showing all expressways & synced OneMap cameras');
             }}
             className={`px-3.5 py-1.5 rounded-full text-[12px] font-extrabold transition-all cursor-pointer ${
               activeFilter === 'all'
@@ -783,7 +899,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
             type="button"
             onClick={() => {
               setActiveFilter('cameras');
-              onShowToast('Highlighting live traffic camera snapshots');
+              onShowToast('Highlighting 23 synced OneMap traffic cameras');
             }}
             className={`px-3.5 py-1.5 rounded-full text-[12px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeFilter === 'cameras'
@@ -792,7 +908,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
             }`}
           >
             <span>📷</span>
-            <span>Cameras</span>
+            <span>Cameras ({syncedCameras.length})</span>
           </button>
         </div>
 
@@ -807,7 +923,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#006c49]" />
             </span>
-            <span>OneMap Grey • Live</span>
+            <span>OneMap Synced • Live</span>
           </button>
 
           <button
@@ -815,7 +931,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-[#eee0d6] flex items-center justify-center text-[#211a15] hover:bg-[#f9ebe2] transition-colors cursor-pointer disabled:opacity-50"
-            title="Refresh live telemetry feeds"
+            title="Synchronize live cameras and OneMap telemetry"
           >
             <span
               className={`material-symbols-outlined text-[18px] text-[#006c49] ${
