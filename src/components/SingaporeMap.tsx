@@ -214,11 +214,9 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
   onOpenApiHealth,
   liveExpressways,
   onRefreshLive,
-  isLiveActive,
   fromPoint = { name: 'Toa Payoh Central', lat: 1.3343, lng: 103.8563 },
   toPoint = { name: 'Changi Airport T3', lat: 1.3644, lng: 103.9915 },
 }) => {
-  const mapDivId = 'onemap-div';
   const mapInstanceRef = useRef<any>(null);
   const layersRef = useRef<{
     polylines: any[];
@@ -229,63 +227,59 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
-  // Initialize OneMap Leaflet Grey Map (TileJSON)
+  // Initialize OneMap Leaflet Grey Map (TileJSON) as specified by user
   useEffect(() => {
     let isCancelled = false;
 
-    const checkAndInitMap = () => {
+    const initMap = () => {
       const L = window.L;
       if (!L) {
-        setTimeout(checkAndInitMap, 150);
+        setTimeout(initMap, 100);
         return;
       }
 
-      if (mapInstanceRef.current) {
-        return;
-      }
-
-      const mapContainer = document.getElementById(mapDivId);
+      const mapContainer = document.getElementById('mapdiv');
       if (!mapContainer) return;
+
+      // Clean up previous instance on mapdiv if any
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch (e) {
+          console.warn('Map cleanup error:', e);
+        }
+        mapInstanceRef.current = null;
+      }
+
+      if ((mapContainer as any)._leaflet_id) {
+        delete (mapContainer as any)._leaflet_id;
+        mapContainer.innerHTML = '';
+      }
 
       const sw = L.latLng(1.144, 103.535);
       const ne = L.latLng(1.494, 104.502);
       const bounds = L.latLngBounds(sw, ne);
 
-      const attributionString =
+      const attributionHtml =
         '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>';
 
-      const setupMapInstance = (map: any) => {
+      const setupMap = (data: any) => {
         if (isCancelled) return;
-        mapInstanceRef.current = map;
-        map.setMaxBounds(bounds);
 
-        if (map.attributionControl) {
-          map.attributionControl.setPrefix(attributionString);
-        }
+        let map: any;
 
-        // Set initial view centered on Singapore Island
-        map.setView(L.latLng(1.3521, 103.8198), 12);
-        setMapReady(true);
-      };
-
-      // Query OneMap Grey TileJSON as specified
-      fetch('https://www.onemap.gov.sg/maps/json/raster/tilejson/2.2.0/Grey.json')
-        .then((res) => res.json())
-        .then((data) => {
-          if (isCancelled) return;
+        try {
           if (L.TileJSON && typeof L.TileJSON.createMap === 'function') {
-            const map = L.TileJSON.createMap(mapDivId, data);
-            setupMapInstance(map);
+            map = L.TileJSON.createMap('mapdiv', data);
           } else {
-            // Standard Leaflet TileLayer with OneMap Grey HD tiles
-            const map = L.map(mapDivId, {
+            map = L.map('mapdiv', {
               maxBounds: bounds,
               minZoom: 11,
               maxZoom: 19,
               attributionControl: true,
             });
             const tileUrl =
-              (data.tiles && data.tiles[0]) ||
+              (data && data.tiles && data.tiles[0]) ||
               'https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png';
             L.tileLayer(tileUrl, {
               minZoom: 11,
@@ -295,13 +289,10 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
                 [1.56073, 104.11475],
               ],
             }).addTo(map);
-            setupMapInstance(map);
           }
-        })
-        .catch((err) => {
-          console.warn('OneMap TileJSON load fallback:', err);
-          if (isCancelled) return;
-          const map = L.map(mapDivId, {
+        } catch (err) {
+          console.warn('L.TileJSON.createMap fallback to L.map:', err);
+          map = L.map('mapdiv', {
             maxBounds: bounds,
             minZoom: 11,
             maxZoom: 19,
@@ -315,11 +306,51 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
               [1.56073, 104.11475],
             ],
           }).addTo(map);
-          setupMapInstance(map);
-        });
+        }
+
+        map.setMaxBounds(bounds);
+        map.setView(L.latLng(1.2868108, 103.8545349), 16);
+
+        /** DO NOT REMOVE the OneMap attribution below **/
+        if (map.attributionControl) {
+          map.attributionControl.setPrefix(attributionHtml);
+        }
+
+        mapInstanceRef.current = map;
+
+        // Invalidate size to guarantee tile rendering inside flex containers
+        setTimeout(() => {
+          if (map) map.invalidateSize();
+        }, 150);
+        setTimeout(() => {
+          if (map) map.invalidateSize();
+        }, 500);
+
+        setMapReady(true);
+      };
+
+      // Use $.get as specified in the OneMap snippet, with fallback to fetch
+      if (window.$ && typeof window.$.get === 'function') {
+        window.$.get(
+          'https://www.onemap.gov.sg/maps/json/raster/tilejson/2.2.0/Grey.json',
+          function (data: any) {
+            setupMap(data);
+          }
+        );
+      } else {
+        fetch('https://www.onemap.gov.sg/maps/json/raster/tilejson/2.2.0/Grey.json')
+          .then((res) => res.json())
+          .then((data) => setupMap(data))
+          .catch((err) => {
+            console.warn('Grey.json fetch fallback:', err);
+            setupMap({
+              tiles: ['https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png'],
+            });
+          });
+      }
     };
 
-    checkAndInitMap();
+    initMap();
 
     return () => {
       isCancelled = true;
@@ -334,7 +365,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
     };
   }, []);
 
-  // Update Map Layers (Expressway Polylines, Mascots, Cameras, and Active Route)
+  // Render expressway polylines, mascot tags, camera pins, and active route
   const renderMapLayers = useCallback(() => {
     const map = mapInstanceRef.current;
     const L = window.L;
@@ -370,7 +401,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
       const polyline = L.polyline(coords.path, {
         color,
         weight: isSelected ? 8 : 5,
-        opacity: isSelected ? 0.95 : 0.8,
+        opacity: isSelected ? 0.95 : 0.85,
         smoothFactor: 1,
         lineCap: 'round',
         lineJoin: 'round',
@@ -386,7 +417,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
           <strong>${baseData.code}</strong>: ${speed} km/h
           <div class="text-[11px] text-gray-600">${baseData.name}</div>
         </div>`,
-        { sticky: true, className: 'roadmood-map-tooltip' }
+        { sticky: true }
       );
 
       layersRef.current.polylines.push(polyline);
@@ -520,7 +551,6 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
       const startLatLng: [number, number] = [fromPoint.lat, fromPoint.lng];
       const endLatLng: [number, number] = [toPoint.lat, toPoint.lng];
 
-      // Route Polyline (Glow layer + Main Path)
       const routePoints: [number, number][] = [
         startLatLng,
         [
@@ -600,10 +630,9 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
       routeGroup.addTo(map);
       layersRef.current.routeLayer = routeGroup;
 
-      // Fit map smoothly to the route bounds
       map.fitBounds([startLatLng, endLatLng], {
         padding: [60, 60],
-        maxZoom: 14,
+        maxZoom: 15,
       });
     }
   }, [
@@ -636,6 +665,15 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
     const map = mapInstanceRef.current;
     const L = window.L;
     if (map && L) {
+      map.setView(L.latLng(1.2868108, 103.8545349), 16);
+      onShowToast('Centered on OneMap Downtown (Zoom 16)');
+    }
+  };
+
+  const handleFitIsland = () => {
+    const map = mapInstanceRef.current;
+    const L = window.L;
+    if (map && L) {
       map.setView(L.latLng(1.3521, 103.8198), 12);
       onShowToast('Centered on Singapore Island live network');
     }
@@ -655,8 +693,12 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
 
   return (
     <main className="flex-1 relative bg-[#e5e5e5] overflow-hidden flex flex-col min-h-[500px]">
-      {/* 1. Official OneMap Grey Leaflet Canvas */}
-      <div id={mapDivId} className="w-full h-full min-h-[500px] z-0 flex-1 relative outline-none" />
+      {/* 1. Official OneMap Grey Leaflet Canvas (Container id='mapdiv' as specified) */}
+      <div
+        id="mapdiv"
+        style={{ height: '100%', minHeight: '600px', width: '100%', position: 'relative' }}
+        className="z-0 flex-1 outline-none"
+      />
 
       {/* 2. Top Controls & Filter Bar */}
       <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
@@ -811,12 +853,21 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
         </button>
         <button
           type="button"
-          aria-label="Recenter Map"
+          aria-label="Reset Downtown View (Zoom 16)"
           onClick={handleResetLocation}
           className="w-10 h-10 flex items-center justify-center text-[#006c49] hover:bg-[#f9ebe2] transition-colors cursor-pointer border-t border-[#eee0d6]"
-          title="Recenter on Singapore"
+          title="Downtown View (Zoom 16)"
         >
-          <span className="material-symbols-outlined text-[19px]">my_location</span>
+          <span className="material-symbols-outlined text-[19px]">near_me</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Singapore Island View"
+          onClick={handleFitIsland}
+          className="w-10 h-10 flex items-center justify-center text-[#3c4a42] hover:bg-[#f9ebe2] transition-colors cursor-pointer border-t border-[#eee0d6]"
+          title="Singapore Island View"
+        >
+          <span className="material-symbols-outlined text-[19px]">map</span>
         </button>
       </div>
     </main>
