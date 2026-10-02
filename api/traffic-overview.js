@@ -2,11 +2,7 @@
 // Aggregates live data from LTA DataMall, Singapore Traffic Cameras, and NEA Weather
 
 export default async function handler(req, res) {
-  const accountKey =
-    req.headers['accountkey'] ||
-    req.headers['x-lta-key'] ||
-    req.query.accountKey ||
-    process.env.LTA_ACCOUNT_KEY;
+  const accountKey = process.env.LTA_ACCOUNT_KEY;
 
   const hasLtaKey = Boolean(accountKey && accountKey !== 'MY_LTA_ACCOUNT_KEY');
 
