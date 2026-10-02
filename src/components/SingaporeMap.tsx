@@ -1,5 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { EXPRESSWAYS, ExpresswayData } from '../data/trafficData';
+
+declare global {
+  interface Window {
+    L: any;
+    $: any;
+  }
+}
 
 interface SingaporeMapProps {
   isRouteActive: boolean;
@@ -13,11 +20,188 @@ interface SingaporeMapProps {
   liveExpressways?: Record<string, any>;
   onRefreshLive?: () => Promise<void>;
   isLiveActive?: boolean;
-  fromPoint?: { name: string; svgX: number; svgY: number };
-  toPoint?: { name: string; svgX: number; svgY: number };
+  fromPoint?: { name: string; svgX?: number; svgY?: number; lat?: number; lng?: number };
+  toPoint?: { name: string; svgX?: number; svgY?: number; lat?: number; lng?: number };
   svgRoutePath?: string;
   isClassicRoute?: boolean;
 }
+
+// Expressway Real Coordinates (Lat, Lng) across Singapore
+const EXPRESSWAY_COORDS: Record<string, { path: [number, number][]; center: [number, number] }> = {
+  pie: {
+    path: [
+      [1.332, 103.655],
+      [1.341, 103.708],
+      [1.344, 103.743],
+      [1.353, 103.785],
+      [1.334, 103.856],
+      [1.325, 103.882],
+      [1.326, 103.905],
+      [1.339, 103.955],
+      [1.364, 103.991],
+    ],
+    center: [1.334, 103.856],
+  },
+  cte: {
+    path: [
+      [1.398, 103.865],
+      [1.365, 103.856],
+      [1.334, 103.856],
+      [1.318, 103.851],
+      [1.302, 103.842],
+      [1.285, 103.844],
+      [1.278, 103.848],
+    ],
+    center: [1.318, 103.851],
+  },
+  aye: {
+    path: [
+      [1.312, 103.642],
+      [1.32, 103.72],
+      [1.314, 103.765],
+      [1.298, 103.785],
+      [1.278, 103.815],
+      [1.272, 103.845],
+      [1.275, 103.858],
+    ],
+    center: [1.298, 103.785],
+  },
+  ecp: {
+    path: [
+      [1.364, 103.991],
+      [1.345, 103.965],
+      [1.31, 103.915],
+      [1.298, 103.885],
+      [1.288, 103.865],
+      [1.275, 103.858],
+    ],
+    center: [1.31, 103.915],
+  },
+  kpe: {
+    path: [
+      [1.378, 103.895],
+      [1.345, 103.888],
+      [1.322, 103.885],
+      [1.3, 103.875],
+      [1.288, 103.865],
+    ],
+    center: [1.322, 103.885],
+  },
+  sle: {
+    path: [
+      [1.435, 103.785],
+      [1.418, 103.815],
+      [1.398, 103.855],
+      [1.398, 103.865],
+    ],
+    center: [1.418, 103.815],
+  },
+  bke: {
+    path: [
+      [1.447, 103.771],
+      [1.415, 103.775],
+      [1.375, 103.778],
+      [1.353, 103.785],
+    ],
+    center: [1.415, 103.775],
+  },
+};
+
+const CAMERA_LOCATIONS: {
+  id: string;
+  camNumber: string;
+  name: string;
+  coords: [number, number];
+  expyId: string;
+  speed: string;
+}[] = [
+  {
+    id: 'cam-4702',
+    camNumber: '4702',
+    name: 'PIE - Woodsville Flyover',
+    coords: [1.334, 103.868],
+    expyId: 'pie',
+    speed: '28 km/h',
+  },
+  {
+    id: 'cam-4703',
+    camNumber: '4703',
+    name: 'PIE - Kallang Way',
+    coords: [1.325, 103.882],
+    expyId: 'pie',
+    speed: '31 km/h',
+  },
+  {
+    id: 'cam-1701',
+    camNumber: '1701',
+    name: 'CTE - Moulmein Tunnel Entry',
+    coords: [1.318, 103.851],
+    expyId: 'cte',
+    speed: '42 km/h',
+  },
+  {
+    id: 'cam-2701',
+    camNumber: '2701',
+    name: 'KPE - Defu Underpass',
+    coords: [1.345, 103.888],
+    expyId: 'kpe',
+    speed: '54 km/h',
+  },
+  {
+    id: 'cam-3701',
+    camNumber: '3701',
+    name: 'ECP - Marine Parade',
+    coords: [1.302, 103.905],
+    expyId: 'ecp',
+    speed: '84 km/h',
+  },
+  {
+    id: 'cam-5701',
+    camNumber: '5701',
+    name: 'AYE - Keppel Viaduct',
+    coords: [1.272, 103.845],
+    expyId: 'aye',
+    speed: '68 km/h',
+  },
+  {
+    id: 'cam-6701',
+    camNumber: '6701',
+    name: 'SLE - Mandai Lake Flyover',
+    coords: [1.418, 103.815],
+    expyId: 'sle',
+    speed: '76 km/h',
+  },
+];
+
+const INCIDENT_LOCATIONS: {
+  id: string;
+  title: string;
+  coords: [number, number];
+  expyId: string;
+  type: string;
+}[] = [
+  {
+    id: 'inc-pie-1',
+    title: 'PIE: Lane 1 Breakdown near Bedok North',
+    coords: [1.338, 103.925],
+    expyId: 'pie',
+    type: 'breakdown',
+  },
+  {
+    id: 'inc-pie-2',
+    title: 'PIE: Heavy Rain • High Ponding Risk at Woodsville',
+    coords: [1.334, 103.868],
+    expyId: 'pie',
+    type: 'ponding',
+  },
+  {
+    id: 'inc-cte-1',
+    title: 'CTE: ERP Gantry Surge past Moulmein',
+    coords: [1.318, 103.851],
+    expyId: 'cte',
+    type: 'congestion',
+  },
+];
 
 export const SingaporeMap: React.FC<SingaporeMapProps> = ({
   isRouteActive,
@@ -31,810 +215,609 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
   liveExpressways,
   onRefreshLive,
   isLiveActive,
-  fromPoint = { name: 'Toa Payoh Central', svgX: 415, svgY: 310 },
-  toPoint = { name: 'Changi Airport T3', svgX: 890, svgY: 285 },
-  svgRoutePath,
-  isClassicRoute = true,
+  fromPoint = { name: 'Toa Payoh Central', lat: 1.3343, lng: 103.8563 },
+  toPoint = { name: 'Changi Airport T3', lat: 1.3644, lng: 103.9915 },
 }) => {
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const mapDivId = 'onemap-div';
+  const mapInstanceRef = useRef<any>(null);
+  const layersRef = useRef<{
+    polylines: any[];
+    markers: any[];
+    routeLayer: any | null;
+  }>({ polylines: [], markers: [], routeLayer: null });
+
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [previewExpy, setPreviewExpy] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Initialize OneMap Leaflet Grey Map (TileJSON)
+  useEffect(() => {
+    let isCancelled = false;
 
+    const checkAndInitMap = () => {
+      const L = window.L;
+      if (!L) {
+        setTimeout(checkAndInitMap, 150);
+        return;
+      }
+
+      if (mapInstanceRef.current) {
+        return;
+      }
+
+      const mapContainer = document.getElementById(mapDivId);
+      if (!mapContainer) return;
+
+      const sw = L.latLng(1.144, 103.535);
+      const ne = L.latLng(1.494, 104.502);
+      const bounds = L.latLngBounds(sw, ne);
+
+      const attributionString =
+        '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>';
+
+      const setupMapInstance = (map: any) => {
+        if (isCancelled) return;
+        mapInstanceRef.current = map;
+        map.setMaxBounds(bounds);
+
+        if (map.attributionControl) {
+          map.attributionControl.setPrefix(attributionString);
+        }
+
+        // Set initial view centered on Singapore Island
+        map.setView(L.latLng(1.3521, 103.8198), 12);
+        setMapReady(true);
+      };
+
+      // Query OneMap Grey TileJSON as specified
+      fetch('https://www.onemap.gov.sg/maps/json/raster/tilejson/2.2.0/Grey.json')
+        .then((res) => res.json())
+        .then((data) => {
+          if (isCancelled) return;
+          if (L.TileJSON && typeof L.TileJSON.createMap === 'function') {
+            const map = L.TileJSON.createMap(mapDivId, data);
+            setupMapInstance(map);
+          } else {
+            // Standard Leaflet TileLayer with OneMap Grey HD tiles
+            const map = L.map(mapDivId, {
+              maxBounds: bounds,
+              minZoom: 11,
+              maxZoom: 19,
+              attributionControl: true,
+            });
+            const tileUrl =
+              (data.tiles && data.tiles[0]) ||
+              'https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png';
+            L.tileLayer(tileUrl, {
+              minZoom: 11,
+              maxZoom: 19,
+              bounds: [
+                [1.16, 103.502],
+                [1.56073, 104.11475],
+              ],
+            }).addTo(map);
+            setupMapInstance(map);
+          }
+        })
+        .catch((err) => {
+          console.warn('OneMap TileJSON load fallback:', err);
+          if (isCancelled) return;
+          const map = L.map(mapDivId, {
+            maxBounds: bounds,
+            minZoom: 11,
+            maxZoom: 19,
+            attributionControl: true,
+          });
+          L.tileLayer('https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png', {
+            minZoom: 11,
+            maxZoom: 19,
+            bounds: [
+              [1.16, 103.502],
+              [1.56073, 104.11475],
+            ],
+          }).addTo(map);
+          setupMapInstance(map);
+        });
+    };
+
+    checkAndInitMap();
+
+    return () => {
+      isCancelled = true;
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch (e) {
+          console.warn('Map cleanup error:', e);
+        }
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update Map Layers (Expressway Polylines, Mascots, Cameras, and Active Route)
+  const renderMapLayers = useCallback(() => {
+    const map = mapInstanceRef.current;
+    const L = window.L;
+    if (!map || !L || !mapReady) return;
+
+    // Clear previous dynamic layers
+    layersRef.current.polylines.forEach((poly) => poly.remove());
+    layersRef.current.markers.forEach((marker) => marker.remove());
+    if (layersRef.current.routeLayer) {
+      layersRef.current.routeLayer.remove();
+      layersRef.current.routeLayer = null;
+    }
+    layersRef.current.polylines = [];
+    layersRef.current.markers = [];
+
+    // 1. Draw Expressway Polylines
+    Object.entries(EXPRESSWAYS).forEach(([id, baseData]) => {
+      const coords = EXPRESSWAY_COORDS[id];
+      if (!coords) return;
+
+      const live = liveExpressways?.[id];
+      const speed = live?.currentSpeed ?? baseData.currentSpeed;
+      const mood = live?.mood ?? baseData.mood;
+
+      const isSelected = selectedExpressway === id;
+      const isRed = mood === 'sulking' || speed < 40;
+      const isAmber = mood === 'meh' || mood === 'grumpy' || (speed >= 40 && speed < 70);
+
+      const color = isRed ? '#b91a24' : isAmber ? '#fea619' : '#10b981';
+
+      if (activeFilter === 'grumpy' && !isRed && !isAmber) return;
+
+      const polyline = L.polyline(coords.path, {
+        color,
+        weight: isSelected ? 8 : 5,
+        opacity: isSelected ? 0.95 : 0.8,
+        smoothFactor: 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(map);
+
+      polyline.on('click', () => {
+        onSelectExpressway(id);
+        onShowToast(`Selected ${baseData.name} (${speed} km/h • ${mood})`);
+      });
+
+      polyline.bindTooltip(
+        `<div class="p-1 font-sans">
+          <strong>${baseData.code}</strong>: ${speed} km/h
+          <div class="text-[11px] text-gray-600">${baseData.name}</div>
+        </div>`,
+        { sticky: true, className: 'roadmood-map-tooltip' }
+      );
+
+      layersRef.current.polylines.push(polyline);
+
+      // Add Mascot Marker at Expressway Center
+      const emoji = isRed ? '😤' : isAmber ? '👀' : '🏄‍♂️';
+      const mascotIcon = L.divIcon({
+        className: 'custom-mascot-pin',
+        html: `
+          <div style="
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: white;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+            border: 2px solid ${color};
+            cursor: pointer;
+            font-family: inherit;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+          ">
+            <span style="font-size: 15px;">${emoji}</span>
+            <span style="font-size: 11px; font-weight: 800; color: #211a15;">${baseData.code}</span>
+            <span style="
+              font-size: 10px;
+              font-weight: 800;
+              background: ${color};
+              color: white;
+              padding: 1px 5px;
+              border-radius: 9999px;
+            ">${speed}</span>
+          </div>
+        `,
+        iconSize: [80, 28],
+        iconAnchor: [40, 14],
+      });
+
+      const mascotMarker = L.marker(coords.center, { icon: mascotIcon }).addTo(map);
+      mascotMarker.on('click', () => {
+        onSelectExpressway(id);
+        onShowToast(`Highlighting ${baseData.name} (${speed} km/h)`);
+      });
+      layersRef.current.markers.push(mascotMarker);
+    });
+
+    // 2. Draw Camera Markers
+    if (activeFilter === 'all' || activeFilter === 'cameras') {
+      CAMERA_LOCATIONS.forEach((cam) => {
+        const camIcon = L.divIcon({
+          className: 'custom-cam-pin',
+          html: `
+            <div style="
+              background: #211a15;
+              color: white;
+              width: 28px;
+              height: 28px;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+              border: 2px solid #6ffbbe;
+              cursor: pointer;
+              transform: translate(-50%, -50%);
+            ">
+              <span style="font-size: 14px;">📷</span>
+            </div>
+          `,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+
+        const marker = L.marker(cam.coords, { icon: camIcon }).addTo(map);
+        marker.on('click', () => {
+          const expyData = EXPRESSWAYS[cam.expyId];
+          const foundCam = expyData?.cameras.find((c) => c.id === cam.id) || {
+            id: cam.id,
+            camNumber: cam.camNumber,
+            location: cam.name,
+            imageUrl:
+              'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=600&q=80',
+            updatedAgo: 'Live snapshot',
+            speedText: cam.speed,
+          };
+          onShowCameraModal(foundCam);
+        });
+
+        marker.bindTooltip(`<strong>${cam.name}</strong><br/>Click to view camera feed`, {
+          direction: 'top',
+        });
+        layersRef.current.markers.push(marker);
+      });
+    }
+
+    // 3. Draw Incident Markers
+    if (activeFilter === 'all' || activeFilter === 'incidents') {
+      INCIDENT_LOCATIONS.forEach((inc) => {
+        const incIcon = L.divIcon({
+          className: 'custom-inc-pin',
+          html: `
+            <div style="
+              background: #b91a24;
+              color: white;
+              padding: 2px 6px;
+              border-radius: 12px;
+              font-size: 11px;
+              font-weight: 800;
+              box-shadow: 0 2px 8px rgba(185,26,36,0.4);
+              border: 2px solid white;
+              cursor: pointer;
+              transform: translate(-50%, -50%);
+              white-space: nowrap;
+            ">
+              ⚠️ ${inc.type.toUpperCase()}
+            </div>
+          `,
+          iconSize: [60, 24],
+          iconAnchor: [30, 12],
+        });
+
+        const marker = L.marker(inc.coords, { icon: incIcon }).addTo(map);
+        marker.bindTooltip(`<strong>${inc.title}</strong>`, { direction: 'top' });
+        layersRef.current.markers.push(marker);
+      });
+    }
+
+    // 4. Draw Active Route Line & Endpoint Markers
+    if (isRouteActive && fromPoint.lat && fromPoint.lng && toPoint.lat && toPoint.lng) {
+      const startLatLng: [number, number] = [fromPoint.lat, fromPoint.lng];
+      const endLatLng: [number, number] = [toPoint.lat, toPoint.lng];
+
+      // Route Polyline (Glow layer + Main Path)
+      const routePoints: [number, number][] = [
+        startLatLng,
+        [
+          (startLatLng[0] + endLatLng[0]) / 2 + (startLatLng[0] > endLatLng[0] ? -0.01 : 0.01),
+          (startLatLng[1] + endLatLng[1]) / 2,
+        ],
+        endLatLng,
+      ];
+
+      const routeGroup = L.featureGroup();
+
+      // Outer glow
+      L.polyline(routePoints, {
+        color: '#6ffbbe',
+        weight: 10,
+        opacity: 0.6,
+        lineCap: 'round',
+      }).addTo(routeGroup);
+
+      // Inner stroke
+      L.polyline(routePoints, {
+        color: '#006c49',
+        weight: 5,
+        dashArray: '8, 8',
+        opacity: 0.95,
+        lineCap: 'round',
+      }).addTo(routeGroup);
+
+      // Start Marker (Origin)
+      const startIcon = L.divIcon({
+        className: 'route-start-pin',
+        html: `
+          <div style="
+            background: #006c49;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(0,108,73,0.4);
+            border: 2px solid white;
+            white-space: nowrap;
+            transform: translate(-50%, -100%);
+          ">
+            📍 ${fromPoint.name.split(' ')[0]}
+          </div>
+        `,
+        iconSize: [60, 26],
+        iconAnchor: [30, 26],
+      });
+      L.marker(startLatLng, { icon: startIcon }).addTo(routeGroup);
+
+      // End Marker (Destination)
+      const endIcon = L.divIcon({
+        className: 'route-end-pin',
+        html: `
+          <div style="
+            background: #b91a24;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(185,26,36,0.4);
+            border: 2px solid white;
+            white-space: nowrap;
+            transform: translate(-50%, -100%);
+          ">
+            🎯 ${toPoint.name.split(' ')[0]}
+          </div>
+        `,
+        iconSize: [60, 26],
+        iconAnchor: [30, 26],
+      });
+      L.marker(endLatLng, { icon: endIcon }).addTo(routeGroup);
+
+      routeGroup.addTo(map);
+      layersRef.current.routeLayer = routeGroup;
+
+      // Fit map smoothly to the route bounds
+      map.fitBounds([startLatLng, endLatLng], {
+        padding: [60, 60],
+        maxZoom: 14,
+      });
+    }
+  }, [
+    mapReady,
+    activeFilter,
+    selectedExpressway,
+    liveExpressways,
+    isRouteActive,
+    fromPoint,
+    toPoint,
+    onSelectExpressway,
+    onShowCameraModal,
+    onShowToast,
+  ]);
+
+  useEffect(() => {
+    renderMapLayers();
+  }, [renderMapLayers]);
+
+  // Zoom and Recenter Handlers
   const handleZoom = (delta: number) => {
-    setZoomLevel((prev) => Math.min(Math.max(0.8, prev + delta), 2.2));
-    onShowToast(delta > 0 ? 'Zoomed in on expressway corridor' : 'Zoomed out to island view');
+    const map = mapInstanceRef.current;
+    if (map) {
+      map.setZoom(map.getZoom() + delta);
+      onShowToast(delta > 0 ? 'Zoomed in on OneMap' : 'Zoomed out on OneMap');
+    }
   };
 
   const handleResetLocation = () => {
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
-    onShowToast('Centered on Singapore Island live network');
+    const map = mapInstanceRef.current;
+    const L = window.L;
+    if (map && L) {
+      map.setView(L.latLng(1.3521, 103.8198), 12);
+      onShowToast('Centered on Singapore Island live network');
+    }
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    onShowToast('Fetching fresh LTA DataMall speeds, incidents & cameras...');
+    onShowToast('Pulling live LTA DataMall speeds, incidents & cameras...');
     if (onRefreshLive) {
       await onRefreshLive();
     }
     setTimeout(() => {
       setIsRefreshing(false);
-      onShowToast('Live telemetry pulled! Expressway spirits updated.');
+      onShowToast('Live telemetry refreshed! Expressway spirits updated.');
     }, 600);
   };
 
-  const pieData = {
-    ...EXPRESSWAYS.pie,
-    currentSpeed: liveExpressways?.pie?.currentSpeed ?? EXPRESSWAYS.pie.currentSpeed,
-    characterQuote: liveExpressways?.pie?.quote ?? EXPRESSWAYS.pie.characterQuote,
-  };
-  const cteData = {
-    ...EXPRESSWAYS.cte,
-    currentSpeed: liveExpressways?.cte?.currentSpeed ?? EXPRESSWAYS.cte.currentSpeed,
-    characterQuote: liveExpressways?.cte?.quote ?? EXPRESSWAYS.cte.characterQuote,
-  };
-  const ecpData = {
-    ...EXPRESSWAYS.ecp,
-    currentSpeed: liveExpressways?.ecp?.currentSpeed ?? EXPRESSWAYS.ecp.currentSpeed,
-    characterQuote: liveExpressways?.ecp?.quote ?? EXPRESSWAYS.ecp.characterQuote,
-  };
-  const ayeData = {
-    ...EXPRESSWAYS.aye,
-    currentSpeed: liveExpressways?.aye?.currentSpeed ?? EXPRESSWAYS.aye.currentSpeed,
-    characterQuote: liveExpressways?.aye?.quote ?? EXPRESSWAYS.aye.characterQuote,
-  };
-  const sleData = {
-    ...EXPRESSWAYS.sle,
-    currentSpeed: liveExpressways?.sle?.currentSpeed ?? EXPRESSWAYS.sle.currentSpeed,
-    characterQuote: liveExpressways?.sle?.quote ?? EXPRESSWAYS.sle.characterQuote,
-  };
-  const kpeData = {
-    ...EXPRESSWAYS.kpe,
-    currentSpeed: liveExpressways?.kpe?.currentSpeed ?? EXPRESSWAYS.kpe.currentSpeed,
-    characterQuote: liveExpressways?.kpe?.quote ?? EXPRESSWAYS.kpe.characterQuote,
-  };
-
-  // Active expressway for camera preview
-  const currentPreviewData = previewExpy ? EXPRESSWAYS[previewExpy] : null;
-
   return (
-    <main className="flex-1 min-w-0 relative flex flex-col bg-[#e2eef8] select-none h-[540px] lg:h-auto overflow-hidden">
-      {/* 1. TOP HUD LAYER CONTROLS */}
-      <div className="absolute top-4 left-4 right-4 z-30 flex items-center justify-between pointer-events-none gap-2">
-        {/* Left Filter Pills */}
-        <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md p-1.5 rounded-full shadow-md pointer-events-auto border border-[#eee0d6]">
+    <main className="flex-1 relative bg-[#e5e5e5] overflow-hidden flex flex-col min-h-[500px]">
+      {/* 1. Official OneMap Grey Leaflet Canvas */}
+      <div id={mapDivId} className="w-full h-full min-h-[500px] z-0 flex-1 relative outline-none" />
+
+      {/* 2. Top Controls & Filter Bar */}
+      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md p-1.5 rounded-full shadow-lg border border-[#eee0d6] pointer-events-auto">
           <button
             type="button"
             onClick={() => {
               setActiveFilter('all');
-              onShowToast('Displaying all island expressway spirits');
+              onShowToast('Showing all expressways & cameras');
             }}
-            className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-full text-[12px] font-extrabold transition-all cursor-pointer ${
               activeFilter === 'all'
                 ? 'bg-[#006c49] text-white shadow-xs'
-                : 'text-[#3c4a42] hover:bg-[#f9ebe2]'
+                : 'text-[#3c4a42] hover:bg-[#fff1e7]'
             }`}
           >
-            All Moods
+            All Expressways
           </button>
           <button
             type="button"
             onClick={() => {
               setActiveFilter('grumpy');
-              onShowToast('Filtering to sulking & grumpy expressways only');
+              onShowToast('Filtering: Slow & Grumpy crawls only');
             }}
-            className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-full text-[12px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeFilter === 'grumpy'
                 ? 'bg-[#b91a24] text-white shadow-xs'
-                : 'text-[#3c4a42] hover:bg-[#f9ebe2]'
+                : 'text-[#3c4a42] hover:bg-[#fff1e7]'
             }`}
           >
-            😤 Grumpy Only
+            <span>😤</span>
+            <span>Grumpy Crawls</span>
           </button>
           <button
             type="button"
             onClick={() => {
               setActiveFilter('incidents');
-              onShowToast('Showing all active road alerts & breakdowns');
+              onShowToast('Filtering: Live incidents & ponding');
             }}
-            className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-full text-[12px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeFilter === 'incidents'
                 ? 'bg-[#fea619] text-[#2a1700] shadow-xs'
-                : 'text-[#3c4a42] hover:bg-[#f9ebe2]'
+                : 'text-[#3c4a42] hover:bg-[#fff1e7]'
             }`}
           >
-            ⚠️ Incidents (3)
+            <span>⚠️</span>
+            <span>Incidents</span>
           </button>
           <button
             type="button"
             onClick={() => {
               setActiveFilter('cameras');
-              onShowToast('Displaying LTA traffic camera locations');
+              onShowToast('Highlighting live traffic camera snapshots');
             }}
-            className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all cursor-pointer hidden sm:inline-flex ${
+            className={`px-3.5 py-1.5 rounded-full text-[12px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeFilter === 'cameras'
-                ? 'bg-[#006c49] text-white shadow-xs'
-                : 'text-[#3c4a42] hover:bg-[#f9ebe2]'
+                ? 'bg-[#211a15] text-[#6ffbbe] shadow-xs'
+                : 'text-[#3c4a42] hover:bg-[#fff1e7]'
             }`}
           >
-            📷 Cameras
+            <span>📷</span>
+            <span>Cameras</span>
           </button>
         </div>
 
-        {/* Right Live Telemetry Badge */}
-        <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-md pointer-events-auto border border-[#eee0d6]">
+        {/* Live Indicator & Telemetry Button */}
+        <div className="flex items-center gap-2 pointer-events-auto">
           <button
             type="button"
             onClick={onOpenApiHealth}
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-            title="Inspect /api/health and LTA endpoints status"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-[#eee0d6] text-[12px] font-extrabold text-[#211a15] hover:bg-[#f9ebe2] transition-colors cursor-pointer"
           >
-            <span className="relative flex h-2.5 w-2.5">
+            <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#10b981]" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#006c49]" />
             </span>
-            <span className="text-[12px] text-[#211a15] font-extrabold hidden md:inline">
-              {isLiveActive ? 'Live LTA & OneMap • Connected' : 'Live Traffic • 2m ago'}
-            </span>
+            <span>OneMap Grey • Live</span>
           </button>
+
           <button
             type="button"
-            aria-label="Refresh Map Data"
             onClick={handleRefresh}
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-[#3c4a42] hover:text-[#211a15] transition-transform active:rotate-180 cursor-pointer ${
-              isRefreshing ? 'animate-spin text-[#006c49]' : ''
-            }`}
+            disabled={isRefreshing}
+            className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-md shadow-md border border-[#eee0d6] flex items-center justify-center text-[#211a15] hover:bg-[#f9ebe2] transition-colors cursor-pointer disabled:opacity-50"
+            title="Refresh live telemetry feeds"
           >
-            <span className="material-symbols-outlined text-[17px]">refresh</span>
+            <span
+              className={`material-symbols-outlined text-[18px] text-[#006c49] ${
+                isRefreshing ? 'animate-spin' : ''
+              }`}
+            >
+              refresh
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Floating Center Guide Pill */}
-      <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-white/95 backdrop-blur-md px-4 py-1.5 rounded-full shadow-md flex items-center gap-2 pointer-events-auto border border-[#eee0d6] text-center max-w-[90%] truncate">
-        <span className="text-[14px]">🇸🇬</span>
-        <span className="text-[12px] text-[#211a15] font-extrabold truncate">
-          Singapore Live Road Moods
-        </span>
-        <span className="text-[#3c4a42] text-[11px] font-medium hidden sm:inline">
-          • Tap any expressway to check its live vibe
-        </span>
+      {/* 3. Bottom Expressway Speed Summary Ribbon */}
+      <div className="absolute bottom-4 left-4 right-16 z-20 pointer-events-none flex flex-wrap gap-2 items-center">
+        <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-lg border border-[#eee0d6] pointer-events-auto flex items-center gap-3 overflow-x-auto max-w-full">
+          <span className="text-[10px] font-extrabold uppercase text-[#3c4a42] tracking-wider shrink-0">
+            Speeds:
+          </span>
+          {Object.entries(EXPRESSWAYS)
+            .slice(0, 5)
+            .map(([id, ex]) => {
+              const live = liveExpressways?.[id];
+              const speed = live?.currentSpeed ?? ex.currentSpeed;
+              const isSlow = speed < 45;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    onSelectExpressway(id);
+                    onShowToast(`Selected ${ex.name} (${speed} km/h)`);
+                  }}
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-extrabold border transition-all cursor-pointer ${
+                    selectedExpressway === id
+                      ? 'bg-[#211a15] text-white border-[#211a15]'
+                      : isSlow
+                      ? 'bg-[#ffdad7] text-[#b91a24] border-[#ffb3ad]'
+                      : 'bg-[#fff1e7] text-[#006c49] border-[#eee0d6]'
+                  }`}
+                >
+                  <span>{ex.code}</span>
+                  <span>{speed} km/h</span>
+                </button>
+              );
+            })}
+        </div>
       </div>
 
-      {/* 2. INTERACTIVE SVG SINGAPORE VECTOR MAP CANVAS */}
-      <div
-        ref={containerRef}
-        className="w-full h-full flex items-center justify-center relative overflow-hidden"
-      >
-        <div
-          className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
-          style={{
-            transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
-          }}
+      {/* 4. Floating Zoom & Recenter Controls */}
+      <div className="absolute right-4 bottom-8 z-20 flex flex-col bg-white/95 backdrop-blur-md rounded-2xl shadow-lg overflow-hidden border border-[#eee0d6]">
+        <button
+          type="button"
+          aria-label="Zoom In"
+          onClick={() => handleZoom(1)}
+          className="w-10 h-10 flex items-center justify-center text-[#211a15] hover:bg-[#f9ebe2] transition-colors cursor-pointer"
         >
-          <svg
-            className="w-full h-full max-w-[1300px] object-contain drop-shadow-[0_4px_16px_rgba(40,30,20,0.06)]"
-            viewBox="0 0 1000 600"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <linearGradient id="water-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#E2EEF8" />
-                <stop offset="100%" stopColor="#D4E4F0" />
-              </linearGradient>
-
-              {/* Route Glowing Filters */}
-              <filter id="route-glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow
-                  dx="0"
-                  dy="2"
-                  stdDeviation="4"
-                  floodColor="#006C49"
-                  floodOpacity="0.35"
-                />
-              </filter>
-              <filter id="jam-glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow
-                  dx="0"
-                  dy="2"
-                  stdDeviation="4"
-                  floodColor="#BA1A1A"
-                  floodOpacity="0.45"
-                />
-              </filter>
-            </defs>
-
-            {/* Water Canvas Background */}
-            <rect width="1000" height="600" fill="url(#water-grad)" />
-
-            {/* Surrounding Regional Coastlines (Johor & Riau Islands) */}
-            <path
-              d="M 20 60 Q 200 40 450 70 Q 700 80 980 40 L 980 0 L 20 0 Z"
-              fill="#D7D0C4"
-              opacity="0.65"
-            />
-            <path
-              d="M 100 550 Q 400 520 600 560 Q 800 580 980 540 L 980 600 L 100 600 Z"
-              fill="#D7D0C4"
-              opacity="0.5"
-            />
-
-            {/* Offshore Islands (Sentosa, Jurong Island, Pulau Ubin & Tekong) */}
-            {/* Sentosa */}
-            <path
-              d="M 440 460 Q 480 455 520 465 Q 500 485 450 480 Z"
-              fill="#E8E2D5"
-              stroke="#D3CABE"
-              strokeWidth="1.5"
-            />
-            {/* Jurong Island */}
-            <path
-              d="M 230 440 Q 300 430 330 460 Q 310 495 240 485 Q 210 460 230 440 Z"
-              fill="#E8E2D5"
-              stroke="#D3CABE"
-              strokeWidth="1.5"
-            />
-            {/* Pulau Ubin & Pulau Tekong */}
-            <path
-              d="M 770 180 Q 840 170 870 190 Q 830 215 760 200 Z"
-              fill="#E8E2D5"
-              stroke="#D3CABE"
-              strokeWidth="1.5"
-            />
-            <path
-              d="M 880 180 Q 940 170 960 210 Q 910 240 880 200 Z"
-              fill="#E8E2D5"
-              stroke="#D3CABE"
-              strokeWidth="1.5"
-            />
-
-            {/* MAIN SINGAPORE ISLAND SILHOUETTE */}
-            <path
-              d="
-                M 180 340 
-                C 160 310, 180 260, 220 230 
-                C 260 200, 310 180, 380 170 
-                C 430 160, 480 155, 540 165 
-                C 600 175, 680 190, 750 200 
-                C 810 210, 870 230, 920 280 
-                C 940 310, 930 350, 890 380 
-                C 850 410, 780 430, 700 435 
-                C 630 440, 580 450, 530 440 
-                C 480 430, 450 410, 410 420 
-                C 360 430, 320 440, 260 420 
-                C 210 400, 190 370, 180 340 Z"
-              fill="#ECE7DE"
-              stroke="#D8CEBE"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-            />
-
-            {/* BASE NETWORK EXPRESSWAY HIGHWAYS */}
-            {/* AYE (Ayer Rajah) - Cruising Green */}
-            <path
-              d="M 230 405 C 280 400 360 395 440 410 C 490 418 530 420 570 395"
-              stroke="#10B981"
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.85"
-            />
-            <path
-              d="M 230 405 C 280 400 360 395 440 410 C 490 418 530 420 570 395"
-              stroke="#6FFBBE"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.9"
-            />
-
-            {/* BKE (Bukit Timah) - Breezy Green */}
-            <path
-              d="M 430 170 C 425 210 420 260 415 310"
-              stroke="#10B981"
-              strokeWidth="5"
-              strokeLinecap="round"
-              opacity="0.8"
-            />
-
-            {/* SLE (Seletar) - Green */}
-            <path
-              d="M 430 170 C 480 165 550 180 620 210"
-              stroke="#10B981"
-              strokeWidth="5"
-              strokeLinecap="round"
-              opacity="0.8"
-            />
-
-            {/* CTE (Central Expressway) - Amber / Nervous */}
-            <path
-              d="M 520 200 C 515 250 510 320 525 385"
-              stroke="#FEA619"
-              strokeWidth="6"
-              strokeLinecap="round"
-              opacity="0.9"
-            />
-
-            {/* TPE (Tampines) - Mild Amber */}
-            <path
-              d="M 620 210 C 690 220 780 230 840 280"
-              stroke="#FEA619"
-              strokeWidth="5"
-              strokeLinecap="round"
-              opacity="0.85"
-            />
-
-            {/* PIE Base (Pan Island Expressway full west-east) */}
-            {!isRouteActive && (
-              <path
-                d="M 240 380 C 330 350 415 310 520 295 C 620 295 720 315 820 320"
-                stroke="#BA1A1A"
-                strokeWidth="7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.85"
-              />
-            )}
-
-            {/* ACTIVE NAVIGATION ROUTE HIGHLIGHT */}
-            {isRouteActive && (
-              <g id="active-route-group">
-                {isClassicRoute ? (
-                  <>
-                    {/* Segment B: PIE Heavy Traffic Section (Red Jammed) */}
-                    <path
-                      d="M 415 310 C 470 300 530 285 620 295 C 670 300 700 315 730 318"
-                      stroke="#BA1A1A"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      filter="url(#jam-glow)"
-                    />
-                    <path
-                      d="M 415 310 C 470 300 530 285 620 295 C 670 300 700 315 730 318"
-                      stroke="#FFB3AD"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-
-                    {/* Segment C: KPE Tunnel Connector (Amber Flow) */}
-                    <path
-                      d="M 620 295 C 625 330 635 365 650 380"
-                      stroke="#FEA619"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M 620 295 C 625 330 635 365 650 380"
-                      stroke="#FFDDB8"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-
-                    {/* Segment D: ECP Coastal Express (Green Breezy Flow to Airport) */}
-                    <path
-                      d="M 570 395 C 640 385 730 375 800 350 C 850 330 875 305 890 285"
-                      stroke="#10B981"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      filter="url(#route-glow)"
-                    />
-                    <path
-                      d="M 570 395 C 640 385 730 375 800 350 C 850 330 875 305 890 285"
-                      stroke="#6FFBBE"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </>
-                ) : (
-                  <>
-                    {/* Dynamic Computed Route Curve connecting fromPoint to toPoint */}
-                    <path
-                      d={
-                        svgRoutePath ||
-                        `M ${fromPoint.svgX} ${fromPoint.svgY} Q ${(fromPoint.svgX + toPoint.svgX) / 2} ${
-                          (fromPoint.svgY + toPoint.svgY) / 2 - 35
-                        } ${toPoint.svgX} ${toPoint.svgY}`
-                      }
-                      stroke="#006C49"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      filter="url(#route-glow)"
-                    />
-                    <path
-                      d={
-                        svgRoutePath ||
-                        `M ${fromPoint.svgX} ${fromPoint.svgY} Q ${(fromPoint.svgX + toPoint.svgX) / 2} ${
-                          (fromPoint.svgY + toPoint.svgY) / 2 - 35
-                        } ${toPoint.svgX} ${toPoint.svgY}`
-                      }
-                      stroke="#6FFBBE"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </>
-                )}
-
-                {/* Origin Pin */}
-                <circle cx={fromPoint.svgX} cy={fromPoint.svgY} r="7" fill="#006C49" />
-                <circle cx={fromPoint.svgX} cy={fromPoint.svgY} r="3" fill="#ffffff" />
-                <circle cx={fromPoint.svgX} cy={fromPoint.svgY} r="14" fill="#006C49" opacity="0.25">
-                  <animate
-                    attributeName="r"
-                    values="7;18;7"
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="opacity"
-                    values="0.3;0;0.3"
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-
-                {/* Destination Pin */}
-                <circle cx={toPoint.svgX} cy={toPoint.svgY} r="7" fill="#BA1A1A" />
-                <circle cx={toPoint.svgX} cy={toPoint.svgY} r="3" fill="#ffffff" />
-                <circle cx={toPoint.svgX} cy={toPoint.svgY} r="16" fill="#BA1A1A" opacity="0.25">
-                  <animate
-                    attributeName="r"
-                    values="7;18;7"
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="opacity"
-                    values="0.3;0;0.3"
-                    dur="2s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-              </g>
-            )}
-          </svg>
-        </div>
-
-        {/* 3. MAP MARKERS OVERLAY (DIE-CUT STICKER BADGES) */}
-        <div className="absolute inset-0 pointer-events-none">
-          {/* PIE Sulking Badge */}
-          {(activeFilter === 'all' || activeFilter === 'grumpy') && (
-            <div
-              className="pointer-events-auto absolute top-[44%] left-[58%] -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-10"
-              onClick={() => {
-                onSelectExpressway('pie');
-                setPreviewExpy('pie');
-              }}
-            >
-              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-full shadow-lg border-2 border-white hover:scale-110 active:scale-95 transition-transform">
-                <span className="w-6 h-6 rounded-full bg-[#b91a24] flex items-center justify-center text-white text-[11px] font-extrabold shadow-inner">
-                  😤
-                </span>
-                <div className="flex flex-col pr-1">
-                  <span className="text-[11px] text-[#b91a24] font-extrabold leading-tight">
-                    PIE: Sulking
-                  </span>
-                  <span className="text-[10px] text-[#3c4a42] font-bold leading-tight">
-                    {pieData.currentSpeed} km/h
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* CTE Grumpy Badge */}
-          {(activeFilter === 'all' || activeFilter === 'grumpy') && (
-            <div
-              className="pointer-events-auto absolute top-[36%] left-[49%] -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-10"
-              onClick={() => {
-                onSelectExpressway('cte');
-                setPreviewExpy('cte');
-              }}
-            >
-              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-full shadow-lg border-2 border-white hover:scale-110 active:scale-95 transition-transform">
-                <span className="w-6 h-6 rounded-full bg-[#fea619] flex items-center justify-center text-[#684000] text-[11px] font-extrabold">
-                  👀
-                </span>
-                <div className="flex flex-col pr-1">
-                  <span className="text-[11px] text-[#855300] font-extrabold leading-tight">
-                    CTE: Grumpy
-                  </span>
-                  <span className="text-[10px] text-[#3c4a42] font-bold leading-tight">
-                    {cteData.currentSpeed} km/h
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* AYE Cruising Badge */}
-          {activeFilter === 'all' && (
-            <div
-              className="pointer-events-auto absolute top-[64%] left-[34%] -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-10"
-              onClick={() => {
-                onSelectExpressway('aye');
-                setPreviewExpy('aye');
-              }}
-            >
-              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-full shadow-lg border-2 border-white hover:scale-110 active:scale-95 transition-transform">
-                <span className="w-6 h-6 rounded-full bg-[#10b981] flex items-center justify-center text-[#00422b] text-[11px] font-extrabold">
-                  🚗
-                </span>
-                <div className="flex flex-col pr-1">
-                  <span className="text-[11px] text-[#006c49] font-extrabold leading-tight">
-                    AYE: Cruising
-                  </span>
-                  <span className="text-[10px] text-[#3c4a42] font-bold leading-tight">
-                    {ayeData.currentSpeed} km/h
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ECP Grinning Badge */}
-          {activeFilter === 'all' && (
-            <div
-              className="pointer-events-auto absolute top-[57%] left-[76%] -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-10"
-              onClick={() => {
-                onSelectExpressway('ecp');
-                setPreviewExpy('ecp');
-              }}
-            >
-              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-full shadow-lg border-2 border-white hover:scale-110 active:scale-95 transition-transform">
-                <span className="w-6 h-6 rounded-full bg-[#6ffbbe] flex items-center justify-center text-[#002113] text-[11px] font-extrabold">
-                  😎
-                </span>
-                <div className="flex flex-col pr-1">
-                  <span className="text-[11px] text-[#006c49] font-extrabold leading-tight">
-                    ECP: Grinning
-                  </span>
-                  <span className="text-[10px] text-[#3c4a42] font-bold leading-tight">
-                    {ecpData.currentSpeed} km/h
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SLE Breezy Badge */}
-          {activeFilter === 'all' && (
-            <div
-              className="pointer-events-auto absolute top-[27%] left-[53%] -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-10"
-              onClick={() => {
-                onSelectExpressway('sle');
-                setPreviewExpy('sle');
-              }}
-            >
-              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-full shadow-lg border-2 border-white hover:scale-110 active:scale-95 transition-transform">
-                <span className="w-6 h-6 rounded-full bg-[#10b981] flex items-center justify-center text-[#00422b] text-[11px] font-extrabold">
-                  🌿
-                </span>
-                <div className="flex flex-col pr-1">
-                  <span className="text-[11px] text-[#006c49] font-extrabold leading-tight">
-                    SLE: Breezy
-                  </span>
-                  <span className="text-[10px] text-[#3c4a42] font-bold leading-tight">
-                    {sleData.currentSpeed} km/h
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* KPE Meh Badge */}
-          {activeFilter === 'all' && (
-            <div
-              className="pointer-events-auto absolute top-[52%] left-[64%] -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-10"
-              onClick={() => {
-                onSelectExpressway('kpe');
-                setPreviewExpy('kpe');
-              }}
-            >
-              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-full shadow-lg border-2 border-white hover:scale-110 active:scale-95 transition-transform">
-                <span className="w-6 h-6 rounded-full bg-[#ffddb8] flex items-center justify-center text-[#653e00] text-[11px] font-extrabold">
-                  😐
-                </span>
-                <div className="flex flex-col pr-1">
-                  <span className="text-[11px] text-[#855300] font-extrabold leading-tight">
-                    KPE: Meh
-                  </span>
-                  <span className="text-[10px] text-[#3c4a42] font-bold leading-tight">
-                    {kpeData.currentSpeed} km/h
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* INCIDENT 1: Accident on PIE Bedok North */}
-          {(activeFilter === 'all' || activeFilter === 'incidents') && (
-            <div
-              className="pointer-events-auto absolute top-[47%] left-[68%] -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10"
-              onClick={() =>
-                onShowToast(
-                  'Accident on PIE (towards Changi) before Bedok North Exit. Lane 1 blocked.'
-                )
-              }
-            >
-              <div
-                className="w-7 h-7 rounded-full bg-[#ba1a1a] text-white flex items-center justify-center shadow-lg hover:scale-125 transition-transform ring-2 ring-white"
-                title="Accident: Bedok North Exit"
-              >
-                <span className="material-symbols-outlined text-[15px]">car_crash</span>
-              </div>
-            </div>
-          )}
-
-          {/* INCIDENT 2: Roadworks Bartley slip road */}
-          {(activeFilter === 'all' || activeFilter === 'incidents') && (
-            <div
-              className="pointer-events-auto absolute top-[40%] left-[61%] -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10"
-              onClick={() =>
-                onShowToast(
-                  'Maintenance work on Bartley Viaduct slip road. Speed reduced to 50 km/h.'
-                )
-              }
-            >
-              <div
-                className="w-7 h-7 rounded-full bg-[#fea619] text-[#2a1700] flex items-center justify-center shadow-lg hover:scale-125 transition-transform ring-2 ring-white"
-                title="Roadwork: Bartley slip road"
-              >
-                <span className="material-symbols-outlined text-[15px]">traffic</span>
-              </div>
-            </div>
-          )}
-
-          {/* INCIDENT 3: Heavy Rain & Flash Ponding Alert Banner */}
-          {(activeFilter === 'all' || activeFilter === 'incidents') && (
-            <div
-              className="pointer-events-auto absolute top-[43%] left-[54%] -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20"
-              onClick={() =>
-                onShowToast(
-                  'NEA Warning: Heavy downpour along PIE stretch. Reduced visibility & ponding risk!'
-                )
-              }
-            >
-              <div className="flex items-center gap-1.5 bg-[#ffdad7] border border-[#ffb3ad] px-2.5 py-1 rounded-full shadow-lg hover:scale-105 transition-transform">
-                <span className="text-[13px]">🌧️</span>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-[#410004] font-extrabold leading-tight">
-                    NEA: Heavy Rain & Floods
-                  </span>
-                  <span className="text-[9px] text-[#79000e] font-semibold leading-tight">
-                    Ponding Risk • Kallang
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* CAMERAS PIN LAYER (when filter is 'cameras') */}
-          {activeFilter === 'cameras' && (
-            <>
-              <div
-                className="pointer-events-auto absolute top-[45%] left-[57%] -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20"
-                onClick={() => onShowCameraModal(pieData.cameras[0])}
-              >
-                <div className="px-2 py-1 bg-white rounded-full shadow-lg border border-[#eee0d6] flex items-center gap-1 text-[11px] font-bold text-[#006c49] hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined text-[14px]">videocam</span>
-                  <span>CAM #4702</span>
-                </div>
-              </div>
-              <div
-                className="pointer-events-auto absolute top-[38%] left-[50%] -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20"
-                onClick={() => onShowCameraModal(cteData.cameras[0])}
-              >
-                <div className="px-2 py-1 bg-white rounded-full shadow-lg border border-[#eee0d6] flex items-center gap-1 text-[11px] font-bold text-[#855300] hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined text-[14px]">videocam</span>
-                  <span>CAM #1701</span>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* 4. FLOATING LIVE CAMERA PREVIEW CARD (MODAL / HOVER POPUP) */}
-      {currentPreviewData && currentPreviewData.cameras.length > 0 && (
-        <div className="absolute bottom-20 left-4 z-40 bg-white/95 backdrop-blur-md rounded-2xl p-3 shadow-xl max-w-xs border border-[#eee0d6] transition-all animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#eee0d6]/70">
-            <div className="flex items-center gap-1.5 truncate">
-              <span className="w-2 h-2 rounded-full bg-[#ba1a1a] animate-ping shrink-0" />
-              <span className="text-[13px] text-[#211a15] font-extrabold truncate">
-                {currentPreviewData.cameras[0].location}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setPreviewExpy(null)}
-              className="w-5 h-5 rounded-full flex items-center justify-center text-[#3c4a42] hover:text-[#211a15] cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[16px]">close</span>
-            </button>
-          </div>
-
-          <div
-            onClick={() => onShowCameraModal(currentPreviewData.cameras[0])}
-            className="w-full h-32 rounded-xl bg-[#f9ebe2] overflow-hidden relative shadow-inner cursor-pointer group"
-          >
-            <img
-              src={currentPreviewData.cameras[0].imageUrl}
-              alt={currentPreviewData.cameras[0].location}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-            />
-            <div className="absolute bottom-1.5 right-1.5 bg-[#211a15]/80 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-              CAM #{currentPreviewData.cameras[0].camNumber} • LIVE
-            </div>
-          </div>
-
-          <div className="mt-2 flex items-center justify-between text-[11px]">
-            <span className="text-[#b91a24] font-extrabold">
-              {currentPreviewData.cameras[0].speedText}
-            </span>
-            <span className="text-[#3c4a42] font-semibold">
-              {currentPreviewData.cameras[0].updatedAgo}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* 5. MAP CONTROLS & COLOR LEGEND (BOTTOM RIGHT) */}
-      <div className="absolute bottom-4 right-4 z-30 flex flex-col items-end gap-2 pointer-events-none">
-        {/* Expressway Vibe Legend */}
-        <div className="bg-white/95 backdrop-blur-md p-2.5 rounded-xl shadow-md flex items-center gap-3 pointer-events-auto border border-[#eee0d6]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
-            <span className="text-[11px] text-[#211a15] font-bold">Breezy &gt;70km/h</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#fea619]" />
-            <span className="text-[11px] text-[#211a15] font-bold">Meh 40-70</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ba1a1a]" />
-            <span className="text-[11px] text-[#211a15] font-bold">Sulking &lt;40</span>
-          </div>
-        </div>
-
-        {/* Zoom Controls */}
-        <div className="flex flex-col bg-white/95 backdrop-blur-md rounded-full shadow-md overflow-hidden pointer-events-auto border border-[#eee0d6]">
-          <button
-            type="button"
-            aria-label="Zoom In"
-            onClick={() => handleZoom(0.25)}
-            className="w-9 h-9 flex items-center justify-center text-[#211a15] hover:bg-[#f9ebe2] transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[19px]">add</span>
-          </button>
-          <button
-            type="button"
-            aria-label="Zoom Out"
-            onClick={() => handleZoom(-0.25)}
-            className="w-9 h-9 flex items-center justify-center text-[#211a15] hover:bg-[#f9ebe2] transition-colors cursor-pointer border-t border-[#eee0d6]"
-          >
-            <span className="material-symbols-outlined text-[19px]">remove</span>
-          </button>
-          <button
-            type="button"
-            aria-label="Current Location"
-            onClick={handleResetLocation}
-            className="w-9 h-9 flex items-center justify-center text-[#006c49] hover:bg-[#f9ebe2] transition-colors cursor-pointer border-t border-[#eee0d6]"
-          >
-            <span className="material-symbols-outlined text-[18px]">my_location</span>
-          </button>
-        </div>
+          <span className="material-symbols-outlined text-[20px]">add</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom Out"
+          onClick={() => handleZoom(-1)}
+          className="w-10 h-10 flex items-center justify-center text-[#211a15] hover:bg-[#f9ebe2] transition-colors cursor-pointer border-t border-[#eee0d6]"
+        >
+          <span className="material-symbols-outlined text-[20px]">remove</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Recenter Map"
+          onClick={handleResetLocation}
+          className="w-10 h-10 flex items-center justify-center text-[#006c49] hover:bg-[#f9ebe2] transition-colors cursor-pointer border-t border-[#eee0d6]"
+          title="Recenter on Singapore"
+        >
+          <span className="material-symbols-outlined text-[19px]">my_location</span>
+        </button>
       </div>
     </main>
   );

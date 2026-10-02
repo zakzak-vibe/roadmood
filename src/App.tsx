@@ -269,11 +269,15 @@ export default function App() {
                 name: computedRoute.fromLoc.name,
                 svgX: computedRoute.fromLoc.svgX,
                 svgY: computedRoute.fromLoc.svgY,
+                lat: computedRoute.fromLoc.lat,
+                lng: computedRoute.fromLoc.lng,
               }}
               toPoint={{
                 name: computedRoute.toLoc.name,
                 svgX: computedRoute.toLoc.svgX,
                 svgY: computedRoute.toLoc.svgY,
+                lat: computedRoute.toLoc.lat,
+                lng: computedRoute.toLoc.lng,
               }}
               svgRoutePath={computedRoute.svgRoutePath}
               isClassicRoute={isClassic}
