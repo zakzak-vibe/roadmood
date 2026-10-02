@@ -1,0 +1,7 @@
+{
+  "name": "Road Moods",
+  "description": "Tactile Singapore live traffic vibes & expressway mood-based route planner with expressive road spirits, camera feeds, and smart commute recommendations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
