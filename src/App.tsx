@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { RoutePanel } from './components/RoutePanel';
 import { SingaporeMap } from './components/SingaporeMap';
@@ -15,7 +15,24 @@ import {
   SavedTrip,
   EXPRESSWAYS,
   ExpresswayData,
+  RouteTripDetail,
 } from './data/trafficData';
+import {
+  fetchTrafficOverview,
+  fetchOneMapRoute,
+  TrafficOverviewResponse,
+} from './services/ltaApi';
+
+// Coordinate lookup for Singapore landmarks for OneMap routing
+const DESTINATION_COORDS: Record<string, { lat: number; lng: number }> = {
+  'changi': { lat: 1.3644, lng: 103.9915 },
+  'marina': { lat: 1.2789, lng: 103.8536 },
+  'jurong': { lat: 1.3331, lng: 103.7436 },
+  'orchard': { lat: 1.3048, lng: 103.8318 },
+  'woodlands': { lat: 1.4470, lng: 103.7717 },
+  'sentosa': { lat: 1.2540, lng: 103.8238 },
+  'tampines': { lat: 1.3533, lng: 103.9452 },
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'moods' | 'awards' | 'my-trips'>('moods');
@@ -31,10 +48,121 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastTimeout, setToastTimeout] = useState<number | null>(null);
 
+  // Live telemetry state from endpoints
+  const [liveOverview, setLiveOverview] = useState<TrafficOverviewResponse | null>(null);
+  const [isLiveActive, setIsLiveActive] = useState<boolean>(false);
+  const [routeData, setRouteData] = useState<RouteTripDetail>(CHANGI_TRIP_DATA);
+
   // Informational Dialogs
   const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
 
   const isRouteActive = Boolean(destination && destination.trim().length > 0);
+
+  // Pull live data from /api/traffic-overview
+  const loadLiveTraffic = async () => {
+    try {
+      const data = await fetchTrafficOverview();
+      setLiveOverview(data);
+      setIsLiveActive(true);
+
+      // Dynamically update routeData with live speeds and weather
+      if (data.expressways) {
+        setRouteData((prev) => {
+          const pieLive = data.expressways.pie;
+          const kpeLive = data.expressways.kpe;
+          const ecpLive = data.expressways.ecp;
+
+          const updatedExpys = prev.expressways.map((ex) => {
+            if (ex.code === 'PIE' && pieLive) {
+              return {
+                ...ex,
+                speedKmH: pieLive.currentSpeed,
+                mood: pieLive.mood as any,
+                moodLabel: pieLive.moodLabel,
+                characterQuote: pieLive.quote,
+              };
+            }
+            if (ex.code === 'KPE' && kpeLive) {
+              return {
+                ...ex,
+                speedKmH: kpeLive.currentSpeed,
+                mood: kpeLive.mood as any,
+                moodLabel: kpeLive.moodLabel,
+                characterQuote: kpeLive.quote,
+              };
+            }
+            if (ex.code === 'ECP' && ecpLive) {
+              return {
+                ...ex,
+                speedKmH: ecpLive.currentSpeed,
+                mood: ecpLive.mood as any,
+                moodLabel: ecpLive.moodLabel,
+                characterQuote: ecpLive.quote,
+              };
+            }
+            return ex;
+          });
+
+          return {
+            ...prev,
+            weatherWarning: {
+              title: data.weather?.forecast ? `NEA: ${data.weather.forecast.toUpperCase()}` : prev.weatherWarning.title,
+              updatedAgo: 'Live Forecast',
+              description: data.weather?.forecast
+                ? `${data.weather.forecast} over ${data.weather.area || 'eastern expressway corridor'}. Drive with caution.`
+                : prev.weatherWarning.description,
+            },
+            expressways: updatedExpys,
+          };
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to pull live traffic overview:', err);
+    }
+  };
+
+  // Initial load and auto-refresh every 30s
+  useEffect(() => {
+    loadLiveTraffic();
+    const interval = setInterval(loadLiveTraffic, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Recalculate route using OneMap when destination changes
+  useEffect(() => {
+    if (!destination) return;
+
+    const lower = destination.toLowerCase();
+    let destCoord = DESTINATION_COORDS['changi'];
+    for (const [key, coord] of Object.entries(DESTINATION_COORDS)) {
+      if (lower.includes(key)) {
+        destCoord = coord;
+        break;
+      }
+    }
+
+    const startCoord = '1.3343,103.8563'; // Toa Payoh
+    const endCoord = `${destCoord.lat},${destCoord.lng}`;
+
+    fetchOneMapRoute(startCoord, endCoord)
+      .then((oneMapRes) => {
+        if (oneMapRes && oneMapRes.route_summary) {
+          const estMins = Math.round(oneMapRes.route_summary.total_time / 60) || 35;
+          const distKm = parseFloat((oneMapRes.route_summary.total_distance / 1000).toFixed(1)) || 24.6;
+
+          setRouteData((prev) => ({
+            ...prev,
+            toText: destination,
+            estMinutes: estMins,
+            distanceKm: distKm,
+            delayMinutes: Math.max(0, estMins - Math.round(distKm * 0.9)),
+          }));
+        }
+      })
+      .catch((e) => {
+        console.warn('OneMap route fetch error:', e);
+      });
+  }, [destination]);
 
   const showToast = (message: string) => {
     if (toastTimeout) {
@@ -107,7 +235,7 @@ export default function App() {
               destination={destination}
               setDestination={setDestination}
               isRouteActive={isRouteActive}
-              routeData={CHANGI_TRIP_DATA}
+              routeData={routeData}
               savedTrips={savedTrips}
               onSelectSavedTrip={handleSelectSavedTrip}
               onSwapRoute={handleSwapRoute}
@@ -123,6 +251,7 @@ export default function App() {
               onStartDrive={() => setIsDriving(true)}
               onViewAwards={() => setActiveTab('awards')}
               onShowToast={showToast}
+              liveOverview={liveOverview}
             />
 
             {/* Right Map Canvas */}
@@ -135,6 +264,9 @@ export default function App() {
               onShowCameraModal={(cam) => setSelectedCamera(cam)}
               onShowToast={showToast}
               onOpenApiHealth={() => setIsApiHealthOpen(true)}
+              liveExpressways={liveOverview?.expressways}
+              onRefreshLive={loadLiveTraffic}
+              isLiveActive={isLiveActive}
             />
           </div>
         )}

@@ -31,34 +31,52 @@ export interface ApiHealthResponse {
   };
 }
 
-export interface LtaIncident {
-  Type: string;
-  Latitude: number;
-  Longitude: number;
-  Message: string;
+export interface LiveExpressway {
+  code: string;
+  name: string;
+  currentSpeed: number;
+  mood: 'sulking' | 'grumpy' | 'meh' | 'cruising' | 'breezy' | 'grinning';
+  moodLabel: string;
+  emoji: string;
+  delayMinutes: number;
+  camImage: string;
+  quote: string;
 }
 
-export interface LtaTravelTime {
-  Name: string;
-  Direction: number;
-  FarEndPoint: string;
-  StartPoint: string;
-  EndPoint: string;
-  EstTime: number;
-}
-
-export interface LtaFloodAlert {
-  alertId: string;
-  dateTime: string;
-  msgType: string;
-  event: string;
-  responseType: string;
-  urgency: string;
-  severity: string;
-  headline: string;
-  description: string;
-  areaDesc: string;
-  status: string;
+export interface TrafficOverviewResponse {
+  success: boolean;
+  isLive: boolean;
+  ltaKeyConfigured: boolean;
+  lastUpdated: string;
+  grumpiestExpy: {
+    code: string;
+    name: string;
+    currentSpeed: number;
+    delayMinutes: number;
+    mood: string;
+    moodLabel: string;
+    quote: string;
+    peakDelayNote: string;
+  };
+  expressways: Record<string, LiveExpressway>;
+  incidents: {
+    Type: string;
+    Latitude: number;
+    Longitude: number;
+    Message: string;
+  }[];
+  floodAlerts: {
+    headline: string;
+    description: string;
+    areaDesc: string;
+    severity: string;
+  }[];
+  weather: {
+    area: string;
+    forecast: string;
+    valid_from: string;
+    valid_to: string;
+  };
 }
 
 export interface OneMapRouteResponse {
@@ -75,17 +93,10 @@ export interface OneMapRouteResponse {
   };
 }
 
-export interface NeaWeather2Hr {
-  area: string;
-  forecast: string;
-  valid_from: string;
-  valid_to: string;
-  condition_details?: {
-    road_advisory: string;
-    ponding_risk: string;
-    humidity: string;
-    temperature: string;
-  };
+export async function fetchTrafficOverview(): Promise<TrafficOverviewResponse> {
+  const res = await fetch('/api/traffic-overview');
+  if (!res.ok) throw new Error(`Failed to fetch traffic overview: ${res.statusText}`);
+  return res.json();
 }
 
 export async function fetchApiHealth(): Promise<ApiHealthResponse> {
@@ -94,39 +105,39 @@ export async function fetchApiHealth(): Promise<ApiHealthResponse> {
   return res.json();
 }
 
-export async function fetchTrafficIncidents(): Promise<{ value: LtaIncident[] }> {
+export async function fetchTrafficIncidents() {
   const res = await fetch('/api/traffic-incidents');
   if (!res.ok) throw new Error(`Failed to fetch incidents: ${res.statusText}`);
   return res.json();
 }
 
-export async function fetchTravelTimes(): Promise<{ value: LtaTravelTime[] }> {
+export async function fetchTravelTimes() {
   const res = await fetch('/api/travel-times');
   if (!res.ok) throw new Error(`Failed to fetch travel times: ${res.statusText}`);
   return res.json();
 }
 
-export async function fetchFloodAlerts(): Promise<{ value: LtaFloodAlert[] }> {
+export async function fetchFloodAlerts() {
   const res = await fetch('/api/flood-alerts');
   if (!res.ok) throw new Error(`Failed to fetch flood alerts: ${res.statusText}`);
   return res.json();
 }
 
-export async function fetchRoadWorks(): Promise<{ value: any[] }> {
+export async function fetchRoadWorks() {
   const res = await fetch('/api/road-works');
   if (!res.ok) throw new Error(`Failed to fetch road works: ${res.statusText}`);
   return res.json();
 }
 
-export async function fetchTrafficSpeeds(): Promise<{ value: any[] }> {
+export async function fetchTrafficSpeeds() {
   const res = await fetch('/api/traffic-speeds');
   if (!res.ok) throw new Error(`Failed to fetch traffic speeds: ${res.statusText}`);
   return res.json();
 }
 
 export async function fetchOneMapRoute(
-  startLatLon: string,
-  endLatLon: string
+  startLatLon: string = '1.3343,103.8563',
+  endLatLon: string = '1.3644,103.9915'
 ): Promise<OneMapRouteResponse> {
   const res = await fetch(
     `/api/onemap-route?start=${encodeURIComponent(startLatLon)}&end=${encodeURIComponent(
@@ -137,7 +148,7 @@ export async function fetchOneMapRoute(
   return res.json();
 }
 
-export async function fetchNeaWeather2Hr(area: string = 'Kallang'): Promise<NeaWeather2Hr> {
+export async function fetchNeaWeather2Hr(area: string = 'Kallang') {
   const res = await fetch(`/api/weather-2hr?area=${encodeURIComponent(area)}`);
   if (!res.ok) throw new Error(`Failed to fetch weather: ${res.statusText}`);
   return res.json();

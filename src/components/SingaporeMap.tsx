@@ -10,6 +10,9 @@ interface SingaporeMapProps {
   onShowCameraModal: (cam: ExpresswayData['cameras'][0]) => void;
   onShowToast: (msg: string) => void;
   onOpenApiHealth?: () => void;
+  liveExpressways?: Record<string, any>;
+  onRefreshLive?: () => Promise<void>;
+  isLiveActive?: boolean;
 }
 
 export const SingaporeMap: React.FC<SingaporeMapProps> = ({
@@ -21,6 +24,9 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
   onShowCameraModal,
   onShowToast,
   onOpenApiHealth,
+  liveExpressways,
+  onRefreshLive,
+  isLiveActive,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -40,21 +46,48 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
     onShowToast('Centered on Singapore Island live network');
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    onShowToast('Refreshing expressway cameras & speed telemetry...');
+    onShowToast('Fetching fresh LTA DataMall speeds, incidents & cameras...');
+    if (onRefreshLive) {
+      await onRefreshLive();
+    }
     setTimeout(() => {
       setIsRefreshing(false);
-      onShowToast('Updated: All Singapore expressway spirits live!');
-    }, 900);
+      onShowToast('Live telemetry pulled! Expressway spirits updated.');
+    }, 600);
   };
 
-  const pieData = EXPRESSWAYS.pie;
-  const cteData = EXPRESSWAYS.cte;
-  const ecpData = EXPRESSWAYS.ecp;
-  const ayeData = EXPRESSWAYS.aye;
-  const sleData = EXPRESSWAYS.sle;
-  const kpeData = EXPRESSWAYS.kpe;
+  const pieData = {
+    ...EXPRESSWAYS.pie,
+    currentSpeed: liveExpressways?.pie?.currentSpeed ?? EXPRESSWAYS.pie.currentSpeed,
+    characterQuote: liveExpressways?.pie?.quote ?? EXPRESSWAYS.pie.characterQuote,
+  };
+  const cteData = {
+    ...EXPRESSWAYS.cte,
+    currentSpeed: liveExpressways?.cte?.currentSpeed ?? EXPRESSWAYS.cte.currentSpeed,
+    characterQuote: liveExpressways?.cte?.quote ?? EXPRESSWAYS.cte.characterQuote,
+  };
+  const ecpData = {
+    ...EXPRESSWAYS.ecp,
+    currentSpeed: liveExpressways?.ecp?.currentSpeed ?? EXPRESSWAYS.ecp.currentSpeed,
+    characterQuote: liveExpressways?.ecp?.quote ?? EXPRESSWAYS.ecp.characterQuote,
+  };
+  const ayeData = {
+    ...EXPRESSWAYS.aye,
+    currentSpeed: liveExpressways?.aye?.currentSpeed ?? EXPRESSWAYS.aye.currentSpeed,
+    characterQuote: liveExpressways?.aye?.quote ?? EXPRESSWAYS.aye.characterQuote,
+  };
+  const sleData = {
+    ...EXPRESSWAYS.sle,
+    currentSpeed: liveExpressways?.sle?.currentSpeed ?? EXPRESSWAYS.sle.currentSpeed,
+    characterQuote: liveExpressways?.sle?.quote ?? EXPRESSWAYS.sle.characterQuote,
+  };
+  const kpeData = {
+    ...EXPRESSWAYS.kpe,
+    currentSpeed: liveExpressways?.kpe?.currentSpeed ?? EXPRESSWAYS.kpe.currentSpeed,
+    characterQuote: liveExpressways?.kpe?.quote ?? EXPRESSWAYS.kpe.characterQuote,
+  };
 
   // Active expressway for camera preview
   const currentPreviewData = previewExpy ? EXPRESSWAYS[previewExpy] : null;
@@ -136,7 +169,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#10b981]" />
             </span>
             <span className="text-[12px] text-[#211a15] font-extrabold hidden md:inline">
-              Live Traffic • 2m ago (APIs OK)
+              {isLiveActive ? 'Live LTA & OneMap • Connected' : 'Live Traffic • 2m ago'}
             </span>
           </button>
           <button

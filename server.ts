@@ -10,6 +10,7 @@ import roadWorksHandler from './api/road-works.js';
 import trafficSpeedsHandler from './api/traffic-speeds.js';
 import onemapRouteHandler from './api/onemap-route.js';
 import weather2hrHandler from './api/weather-2hr.js';
+import trafficOverviewHandler from './api/traffic-overview.js';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ async function startServer() {
 
   // Mount API endpoints
   app.get('/api/health', (req: Request, res: Response) => healthHandler(req, res));
+  app.get('/api/traffic-overview', (req: Request, res: Response) => trafficOverviewHandler(req, res));
   app.get('/api/traffic-incidents', (req: Request, res: Response) => trafficIncidentsHandler(req, res));
   app.get('/api/travel-times', (req: Request, res: Response) => travelTimesHandler(req, res));
   app.get('/api/flood-alerts', (req: Request, res: Response) => floodAlertsHandler(req, res));

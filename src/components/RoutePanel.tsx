@@ -11,6 +11,7 @@ import {
   QUICK_DESTINATIONS,
   EXPRESSWAYS,
 } from '../data/trafficData';
+import { TrafficOverviewResponse } from '../services/ltaApi';
 
 interface RoutePanelProps {
   origin: string;
@@ -28,6 +29,7 @@ interface RoutePanelProps {
   onStartDrive: () => void;
   onViewAwards: () => void;
   onShowToast: (msg: string) => void;
+  liveOverview?: TrafficOverviewResponse | null;
 }
 
 export const RoutePanel: React.FC<RoutePanelProps> = ({
@@ -46,8 +48,16 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
   onStartDrive,
   onViewAwards,
   onShowToast,
+  liveOverview,
 }) => {
-  const pieExpy = EXPRESSWAYS.pie;
+  const grumpiest = liveOverview?.grumpiestExpy || {
+    code: 'PIE',
+    name: 'Pan Island Expressway',
+    currentSpeed: EXPRESSWAYS.pie.currentSpeed,
+    delayMinutes: 24,
+    quote: EXPRESSWAYS.pie.characterQuote,
+    peakDelayNote: 'Peak delay: +24 mins near Woodsville',
+  };
 
   return (
     <aside className="w-full lg:w-[460px] xl:w-[490px] shrink-0 bg-[#fff8f5] flex flex-col z-20 shadow-[8px_0_24px_-10px_rgba(60,40,20,0.06)] border-r border-[#eee0d6] overflow-y-auto max-h-none lg:max-h-[calc(100vh-4rem)]">
@@ -83,26 +93,26 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
                 <GrumpyMascotFace size={44} hasCrown={true} />
               </div>
               <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-[#ba1a1a] text-white text-[10px] leading-tight font-extrabold shadow-sm border border-white">
-                {pieExpy.currentSpeed} km/h
+                {grumpiest.currentSpeed} km/h
               </span>
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="px-2 py-0.5 rounded-md bg-[#b91a24] text-white text-[12px] font-extrabold shadow-xs">
-                  {pieExpy.code}
+                  {grumpiest.code}
                 </span>
                 <span className="font-bold text-[17px] text-[#211a15] truncate">
-                  {pieExpy.name}
+                  {grumpiest.name}
                 </span>
               </div>
               <p className="text-[13px] text-[#3c4a42] mt-1 italic leading-snug">
-                {pieExpy.characterQuote}
+                {grumpiest.quote}
               </p>
               <div className="mt-2 flex items-center gap-1.5 text-[#3c4a42] text-[11px] font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#ba1a1a] animate-ping" />
                 <span>
-                  Peak delay: <strong className="text-[#ba1a1a]">+24 mins</strong> near Woodsville
+                  {grumpiest.peakDelayNote}
                 </span>
               </div>
             </div>
