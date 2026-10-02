@@ -365,6 +365,20 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
     };
   }, []);
 
+  // Helper to safely attach tooltip or popup depending on Leaflet version
+  const safeBindTooltip = (layer: any, content: string, options?: any) => {
+    if (!layer) return;
+    try {
+      if (typeof layer.bindTooltip === 'function') {
+        layer.bindTooltip(content, options);
+      } else if (typeof layer.bindPopup === 'function') {
+        layer.bindPopup(content);
+      }
+    } catch (e) {
+      console.warn('safeBindTooltip fallback:', e);
+    }
+  };
+
   // Render expressway polylines, mascot tags, camera pins, and active route
   const renderMapLayers = useCallback(() => {
     const map = mapInstanceRef.current;
@@ -412,7 +426,8 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
         onShowToast(`Selected ${baseData.name} (${speed} km/h • ${mood})`);
       });
 
-      polyline.bindTooltip(
+      safeBindTooltip(
+        polyline,
         `<div class="p-1 font-sans">
           <strong>${baseData.code}</strong>: ${speed} km/h
           <div class="text-[11px] text-gray-600">${baseData.name}</div>
@@ -507,7 +522,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
           onShowCameraModal(foundCam);
         });
 
-        marker.bindTooltip(`<strong>${cam.name}</strong><br/>Click to view camera feed`, {
+        safeBindTooltip(marker, `<strong>${cam.name}</strong><br/>Click to view camera feed`, {
           direction: 'top',
         });
         layersRef.current.markers.push(marker);
@@ -541,7 +556,7 @@ export const SingaporeMap: React.FC<SingaporeMapProps> = ({
         });
 
         const marker = L.marker(inc.coords, { icon: incIcon }).addTo(map);
-        marker.bindTooltip(`<strong>${inc.title}</strong>`, { direction: 'top' });
+        safeBindTooltip(marker, `<strong>${inc.title}</strong>`, { direction: 'top' });
         layersRef.current.markers.push(marker);
       });
     }
