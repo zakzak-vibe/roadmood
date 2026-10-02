@@ -117,7 +117,7 @@ const DEFAULT_CAMERAS: TrafficImageItem[] = [
     Location: 'CTE - Ang Mo Kio Ave 1 Flyover',
     Expressway: 'cte',
     ImageLink:
-      'https://images.data.gov.sg/api/traffic-images/2026/10/68493226-2e11-4347-8f55-15a95f9c4728.jpg',
+      'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80',
   },
   {
     CameraID: '1701',
@@ -126,7 +126,7 @@ const DEFAULT_CAMERAS: TrafficImageItem[] = [
     Location: 'CTE - Moulmein Tunnel Entry',
     Expressway: 'cte',
     ImageLink:
-      'https://images.data.gov.sg/api/traffic-images/2026/10/68493226-2e11-4347-8f55-15a95f9c4728.jpg',
+      'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80',
   },
   {
     CameraID: '2701',
@@ -162,7 +162,7 @@ const DEFAULT_CAMERAS: TrafficImageItem[] = [
     Location: 'ECP - Fort Road Flyover',
     Expressway: 'ecp',
     ImageLink:
-      'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg',
+      'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=800&q=80',
   },
   {
     CameraID: '3704',
@@ -171,7 +171,7 @@ const DEFAULT_CAMERAS: TrafficImageItem[] = [
     Location: 'ECP - Marine Parade Flyover',
     Expressway: 'ecp',
     ImageLink:
-      'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg',
+      'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=800&q=80',
   },
   {
     CameraID: '4701',
@@ -219,6 +219,15 @@ const DEFAULT_CAMERAS: TrafficImageItem[] = [
       'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg',
   },
   {
+    CameraID: '4799',
+    Latitude: 1.2602778,
+    Longitude: 103.8238889,
+    Location: 'Sentosa Gateway - Telok Blangah',
+    Expressway: 'aye',
+    ImageLink:
+      'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg',
+  },
+  {
     CameraID: '5701',
     Latitude: 1.272,
     Longitude: 103.845,
@@ -243,7 +252,7 @@ const DEFAULT_CAMERAS: TrafficImageItem[] = [
     Location: 'SLE - Mandai Lake Flyover',
     Expressway: 'sle',
     ImageLink:
-      'https://images.data.gov.sg/api/traffic-images/2026/10/14735ec5-ed82-41e7-b67f-c1f938d2bb23.jpg',
+      'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80',
   },
   {
     CameraID: '2703',
@@ -252,7 +261,7 @@ const DEFAULT_CAMERAS: TrafficImageItem[] = [
     Location: 'KPE - Defu Flyover Underpass',
     Expressway: 'kpe',
     ImageLink:
-      'https://images.data.gov.sg/api/traffic-images/2026/10/0fee328f-b6fa-4f76-90dc-9b508135c1a0.jpg',
+      'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=800&q=80',
   },
 ];
 

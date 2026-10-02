@@ -235,34 +235,25 @@ export default async function handler(req, res) {
   }
 
   // Find camera images matching key expressways from live camera feed
-  const findCamImage = (idPrefix) => {
-    const found = liveCameras.find((c) => String(c.camera_id).startsWith(idPrefix));
-    if (found) return found.image;
-    if (liveCameras.length > 0) {
-      // Pick a live camera from available ITSC streams
-      const hash = idPrefix.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      return liveCameras[hash % liveCameras.length]?.image;
-    }
-    return null;
-  };
-
-  const defaultItscImg =
-    'https://images.data.gov.sg/api/traffic-images/2026/10/0fee328f-b6fa-4f76-90dc-9b508135c1a0.jpg';
-
   const pieCamImg =
-    findCamImage('47') ||
+    liveCameras.find((c) => c.camera_id === '4713' || c.camera_id === '4703' || String(c.camera_id).startsWith('47'))?.image ||
     'https://lh3.googleusercontent.com/aida-public/AB6AXuCjXIoMO04KuAOqIFp6R61PDsMpWdnsCiBeHF8JQoLH7hQefyv4XqIT80PSzsq5-EpHVCxaWJ8QQnvf_nGECBZGbcPuJbZTQGXNy8Lhj1YF_Dd192PIuPTfRWbUrIhiIZA6LkHCBqKjrBYS7FsedmmE2xkUUDt-kn4f1oWRBJGMlA91no-D4L_7sByjLYs3MB3jRmaLdAbx7vMnE5VdBRV--OzhOw2dCTGujjtke3ezclKpq9QARyIQjA';
+
   const cteCamImg =
-    findCamImage('17') ||
-    'https://images.data.gov.sg/api/traffic-images/2026/10/68493226-2e11-4347-8f55-15a95f9c4728.jpg';
+    liveCameras.find((c) => String(c.camera_id).startsWith('17') || String(c.camera_id).startsWith('10'))?.image ||
+    'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80';
+
   const ecpCamImg =
-    findCamImage('37') ||
-    'https://images.data.gov.sg/api/traffic-images/2026/10/6acedd7e-38cc-46a2-a9b7-0b13cf4a5447.jpg';
+    liveCameras.find((c) => String(c.camera_id).startsWith('37'))?.image ||
+    'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=800&q=80';
+
   const ayeCamImg =
-    findCamImage('57') ||
+    liveCameras.find((c) => c.camera_id === '4712' || String(c.camera_id).startsWith('57'))?.image ||
     'https://images.data.gov.sg/api/traffic-images/2026/10/eaaeafd4-91c1-4ab1-8e01-1b913ffb7832.jpg';
+
   const kpeCamImg =
-    findCamImage('27') || defaultItscImg;
+    liveCameras.find((c) => c.camera_id === '2703')?.image ||
+    'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=800&q=80';
 
   // Determine mood based on speed
   const getMood = (spd) => {
